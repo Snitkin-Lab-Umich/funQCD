@@ -15,7 +15,7 @@ genome_size: 12000000
 
 # Cores used for busco and trimmomatic
 # Optional to change this
-ncores: 4
+ncores: 8
 
 # Command line parameters for trimmomatic tool
 # Change according to your sequence type

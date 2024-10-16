@@ -124,7 +124,8 @@ rule all:
         ##mlst_final_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_MLST_results.csv", prefix=PREFIX),
         #QC_summary = expand("results/{prefix}/{prefix}_Report/data/{prefix}_QC_summary.csv", prefix=PREFIX),
         #QC_plot = expand("results/{prefix}/{prefix}_Report/fig/{prefix}_Coverage_distribution.png", prefix=PREFIX)
-        
+        funannotate = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX)
+
 rule coverage:
     input:
         r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
@@ -438,4 +439,28 @@ rule skani:
 #        module load multiqc
 #        multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report {params.resultsoutdir}
 #        """
-        
+
+
+rule funannotate:
+    input:
+        spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
+    output:
+        funannotate_predict_out = directory("results/{prefix}/funannotate/{sample}/predict_results/"),
+        funannotate_annotate_out = directory("results/{prefix}/funannotate/{sample}/annotate_results/"),
+        funannotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa"
+    params:
+        out_dir = "results/{prefix}/funannotate/{sample}/",
+        sample = "{sample}",
+        cpus = config["ncores"]
+    singularity:
+        "docker://nextgenusfs/funannotate:v1.8.17"
+    shell:
+        """
+        funannotate clean -i {input.spades_l1000_assembly} -o {params.out_dir}{params.sample}_cleaned.fa
+        funannotate sort -i {params.out_dir}{params.sample}_cleaned.fa -o {params.out_dir}{params.sample}_sorted.fa --minlen 0
+        funannotate mask -i {params.out_dir}{params.sample}_sorted.fa -o {params.out_dir}{params.sample}_masked.fa
+        funannotate predict -i {params.out_dir}{params.sample}_masked.fa -o {params.out_dir} --species '{params.sample}' --augustus_species candida_albicans --cpus {params.cpus}
+        funannotate annotate -i {output.funannotate_predict_out} -o {params.out_dir} --cpus {params.cpus}
+        """
+
+
