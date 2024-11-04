@@ -4,7 +4,7 @@
 samples: config/samples.csv
 
 # Path to your raw sequencing reads  
-short_reads: /nfs/turbo/umms-esnitkin/Raw_sequencing_data/NXBQKY_polished_results/illumina_fastq
+short_reads: /nfs/turbo/umms-esnitkin/Raw_sequencing_data/NXBQKY_polished_results/fastqs_NXBQKY
 
 # Directory prefix where the outputs will be saved to
 # Rename this to your preferred naming convention with this format:year-month-day_Project_Name_QCD

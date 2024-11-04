@@ -19,6 +19,19 @@ if not os.path.exists("results/"):
 if not os.path.exists("results/" + PREFIX):
     os.system("mkdir %s" % "results/" + PREFIX)
 
+if not os.path.exists("lib/"):
+    os.system("mkdir %s" % "lib/")
+
+# This is where the interproscan data will go
+# This path needs to be added to the singularity config options
+# For IPS, this needs to end up in a specific directory as well ('/opt/interproscan/data/')
+if not os.path.exists("lib/interproscan_data/"):
+    os.system("mkdir %s" % "lib/interproscan_data/")
+
+if not os.path.exists("lib/interproscan_data/data/"):
+    os.system("mkdir %s" % "lib/interproscan_data/data/")
+
+
 def downsample_reads(file, file2, out1, out2, genome_size):
     file = file.pop()
     file2 = file2.pop()
@@ -124,7 +137,10 @@ rule all:
         ##mlst_final_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_MLST_results.csv", prefix=PREFIX),
         #QC_summary = expand("results/{prefix}/{prefix}_Report/data/{prefix}_QC_summary.csv", prefix=PREFIX),
         #QC_plot = expand("results/{prefix}/{prefix}_Report/fig/{prefix}_Coverage_distribution.png", prefix=PREFIX)
-        funannotate = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX)
+        funannotate = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
+        interproscan_data_dl = 'lib/interproscan_data/data/antifam/',
+        interproscan_data_init = 'lib/interproscan_data/test_log.txt',
+        interproscan = expand("results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml", sample=SAMPLE, prefix=PREFIX)
 
 rule coverage:
     input:
@@ -440,14 +456,15 @@ rule skani:
 #        multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report {params.resultsoutdir}
 #        """
 
-
+# This needs to be split into individual steps for clean/sort/mask, predict, and annotate
+# For now, I've only split out the annotate step
 rule funannotate:
     input:
         spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
     output:
-        funannotate_predict_out = directory("results/{prefix}/funannotate/{sample}/predict_results/"),
-        funannotate_annotate_out = directory("results/{prefix}/funannotate/{sample}/annotate_results/"),
-        funannotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa"
+        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
+        #funannotate_annotate_out = directory("results/{prefix}/funannotate/{sample}/annotate_results/"),
+        #funannotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa"
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
         sample = "{sample}",
@@ -463,4 +480,98 @@ rule funannotate:
         funannotate annotate -i {output.funannotate_predict_out} -o {params.out_dir} --cpus {params.cpus}
         """
 
+# in progress
+# This downloads the databases needed for InterProScan and moves them to the directory bound via singularity
+rule interproscan_data_dl:
+    output:
+        #interproscan_data_dl_dir = directory('interproscan-5.71-102.0/data/')
+        interproscan_data = directory('lib/interproscan_data/data/antifam/')
+    shell:
+        """
+        curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.71-102.0/alt/interproscan-data-5.71-102.0.tar.gz
+        curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.71-102.0/alt/interproscan-data-5.71-102.0.tar.gz.md5
+        if md5sum -c --quiet interproscan-data-5.71-102.0.tar.gz.md5; then
+        tar -pxzf interproscan-data-5.71-102.0.tar.gz
+        mv interproscan-5.71-102.0/data/* lib/interproscan_data/data/
+        rm interproscan-data-5.71-102.0.tar.gz
+        rm interproscan-data-5.71-102.0.tar.gz.md5
+        rm -r interproscan-5.71-102.0
+        else
+        echo 'Error downloading InterProScan data'
+        fi
+        """
 
+# This initializes and tests the InterProScan data, using a script called ips_setup.sh
+rule interproscan_data_init:
+    input: 
+        interproscan_data = 'lib/interproscan_data/data/antifam/'
+    output:
+        test_log = 'lib/interproscan_data/test_log.txt'
+    singularity:
+        "docker://interpro/interproscan:5.71-102.0"
+    shell:
+        """
+        bash ips_setup.sh > lib/interproscan_data/test_log.txt
+        """
+
+# in progress
+rule interproscan:
+    input:
+        interproscan_data = 'lib/interproscan_data/data/antifam/',
+        test_log = 'lib/interproscan_data/test_log.txt',
+        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
+    output:
+        interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml"
+    singularity:
+        "docker://interpro/interproscan:5.71-102.0"
+    params:
+        out_dir = "results/{prefix}/funannotate/{sample}/",
+        sample = "{sample}",
+        # cpus = config["ncores"]
+        # add "--cpu {params.cpus}" to the command below, this can cause issues if snakemake tries to run multiple interproscan jobs in parallel
+    shell:
+        """
+        bash /opt/interproscan/interproscan.sh --input {input.funannotate_predict_proteins} --output-dir {params.out_dir} --disable-precalc 
+        """
+
+# in progress
+# this downloads the databases needed for eggnog to run
+rule eggnog_data_dl:
+    output:
+        eggnog_data = directory('lib/eggnog_data/')
+        # This needs to be bound via profile/config.yaml as well
+        # add a subdirectory to this output
+    singularity:
+        "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
+    shell:
+        """
+        download_eggnog_data.py -y --data_dir lib/eggnog_data/
+        """
+
+# in progress
+rule eggnog:
+    input:
+        eggnog_data = 'lib/eggnog_data/'
+        # add subdirectory and bind
+        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
+    singularity:
+        "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
+    shell:
+        """
+        emapper.py -y --data_dir lib/eggnog_data/
+        """
+
+# in progress
+# rule funannotate_annotate:
+#     input:
+#         funannotate_predict_out = "results/{prefix}/funannotate/{sample}/predict_results/",
+#         interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/"
+#     output:
+#         funannotate_annotate_out = directory("results/{prefix}/funannotate/{sample}/annotate_results/")
+#     params:
+#         out_dir = "results/{prefix}/funannotate/{sample}/",
+#         sample = "{sample}",
+#         cpus = config["ncores"]
+#     shell:
+#         """
+#         funannotate annotate -i {input.funannotate_predict_out} -o {params.out_dir} --cpus {params.cpus} --iprscan {input.interproscan_out}

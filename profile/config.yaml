@@ -1,0 +1,3 @@
+# Singularity arguments
+use-singularity: True
+singularity-args: "--bind $PWD/lib/interproscan_data/data/:/opt/interproscan/data/"
