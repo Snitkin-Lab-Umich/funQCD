@@ -536,30 +536,30 @@ rule interproscan:
 
 # in progress
 # this downloads the databases needed for eggnog to run
-rule eggnog_data_dl:
-    output:
-        eggnog_data = directory('lib/eggnog_data/')
-        # This needs to be bound via profile/config.yaml as well
-        # add a subdirectory to this output
-    singularity:
-        "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
-    shell:
-        """
-        download_eggnog_data.py -y --data_dir lib/eggnog_data/
-        """
-
-# in progress
-rule eggnog:
-    input:
-        eggnog_data = 'lib/eggnog_data/'
-        # add subdirectory and bind
-        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
-    singularity:
-        "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
-    shell:
-        """
-        emapper.py -y --data_dir lib/eggnog_data/
-        """
+# rule eggnog_data_dl:
+#     output:
+#         eggnog_data = directory('lib/eggnog_data/')
+#         # This needs to be bound via profile/config.yaml as well
+#         # add a subdirectory to this output
+#     singularity:
+#         "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
+#     shell:
+#         """
+#         download_eggnog_data.py -y --data_dir lib/eggnog_data/
+#         """
+#
+# # in progress
+# rule eggnog:
+#     input:
+#         eggnog_data = 'lib/eggnog_data/'
+#         # add subdirectory and bind
+#         funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
+#     singularity:
+#         "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
+#     shell:
+#         """
+#         emapper.py -y --data_dir lib/eggnog_data/
+#         """
 
 # in progress
 # rule funannotate_annotate:
