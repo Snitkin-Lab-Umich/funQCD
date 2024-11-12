@@ -97,12 +97,13 @@ This pipeline requires several files that specify where your raw reads are locat
 
 ### 1) config/config.yaml
 This file contains information about where the sequencing reads and databases can be found. Detailed instructions for each section are provided in the file itself, with a short description of the most important ones here.
-	short_reads: This is the most important section to edit. It must contain the full path to a directory containing your raw sequencing reads, as .fastq.gz files with standardized names (see below).
-	samples: This is the path to a .csv file containing the names of the raw reads you want to process (see next section).
-	prefix: This is the name of the directory containing all outputs, which will appear under `results/` after you run funQCD. This should be a unique name for each run of funQCD.
-	adapter_file: This is the path to the adapter file used for Trimmomatic.
-	skani_db: This is the path to the database used while running skani.
-	funqcd_lib: This is the path to a directory containing several databases required for InterProScan, EggNOG-mapper, and funannotate, as well as RNA-seq data for funannotate.
+
+* short_reads: This is the most important section to edit. It must contain the full path to a directory containing your raw sequencing reads, as .fastq.gz files with standardized names (see below).
+* samples: This is the path to a .csv file containing the names of the raw reads you want to process (see next section).
+* prefix: This is the name of the directory containing all outputs, which will appear under `results/` after you run funQCD. This should be a unique name for each run of funQCD.
+* adapter_file: This is the path to the adapter file used for Trimmomatic.
+* skani_db: This is the path to the database used while running skani.
+* funqcd_lib: This is the path to a directory containing several databases required for InterProScan, EggNOG-mapper, and funannotate, as well as RNA-seq data for funannotate.
 
 Currently, funQCD expects your sequencing reads to be named in a specific format:
 [SampleName]_R[number].fastq.gz
