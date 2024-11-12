@@ -107,6 +107,7 @@ This file contains information about where the sequencing reads and databases ca
 
 Currently, funQCD expects your sequencing reads to be named in a specific format:
 [SampleName]_R[number].fastq.gz
+
 If your reads are named differently, then the script will fail to recognize them. For example, `TO315_R1.fastq.gz` would work, but `TO315_R1_001.fastq.gz` would not. funQCD is currently being updated to fix this issue. 
 
 ### 2) config/samples.csv
