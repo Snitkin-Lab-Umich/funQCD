@@ -19,17 +19,25 @@ if not os.path.exists("results/"):
 if not os.path.exists("results/" + PREFIX):
     os.system("mkdir %s" % "results/" + PREFIX)
 
-if not os.path.exists("lib/"):
-    os.system("mkdir %s" % "lib/")
-
-# This is where the interproscan data will go
-# This path needs to be added to the singularity config options
+# This is only needed for a local installation of the funannotate databases
+# if not os.path.exists("lib/"):
+#     os.system("mkdir %s" % "lib/")
+#
+# This directory can be empty, but it cannot be missing (otherwise the singularity bind will fail)
 # For IPS, this needs to end up in a specific directory as well ('/opt/interproscan/data/')
-if not os.path.exists("lib/interproscan_data/"):
-    os.system("mkdir %s" % "lib/interproscan_data/")
+# if not os.path.exists("lib/interproscan_data/"):
+#     os.system("mkdir %s" % "lib/interproscan_data/")
 
-if not os.path.exists("lib/interproscan_data/data/"):
-    os.system("mkdir %s" % "lib/interproscan_data/data/")
+# if not os.path.exists("lib/interproscan_data/data/"):
+#     os.system("mkdir %s" % "lib/interproscan_data/data/")
+
+# A similar directory is needed for BUSCO
+# This needs to end up in '/opt/databases/saccharomycetales' for funannotate to see it
+# if not os.path.exists("lib/busco/"):
+#     os.system("mkdir %s" % "lib/busco/")
+
+# if not os.path.exists("lib/busco/saccharomycetales/"):
+#     os.system("mkdir %s" % "lib/busco/saccharomycetales/")
 
 
 def downsample_reads(file, file2, out1, out2, genome_size):
@@ -120,7 +128,8 @@ def downsample_reads(file, file2, out1, out2, genome_size):
 rule all:
     input:
         coverage = expand("results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json", sample=SAMPLE, prefix=PREFIX),
-        fastqc_raw = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_001_fastqc.html", sample=SAMPLE, prefix=PREFIX),
+        # fastqc_raw = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_001_fastqc.html", sample=SAMPLE, prefix=PREFIX),
+        fastqc_raw = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample=SAMPLE, prefix=PREFIX),
         trim = expand("results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz", sample=SAMPLE, prefix=PREFIX),
         fastqc_aftertrim = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html", sample=SAMPLE, prefix=PREFIX),
         downsample_read = expand("results/{prefix}/downsample/{sample}/{sample}_R1_trim_paired.fastq.gz", sample=SAMPLE, prefix=PREFIX),
@@ -137,15 +146,25 @@ rule all:
         ##mlst_final_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_MLST_results.csv", prefix=PREFIX),
         #QC_summary = expand("results/{prefix}/{prefix}_Report/data/{prefix}_QC_summary.csv", prefix=PREFIX),
         #QC_plot = expand("results/{prefix}/{prefix}_Report/fig/{prefix}_Coverage_distribution.png", prefix=PREFIX)
-        funannotate = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
-        interproscan_data_dl = 'lib/interproscan_data/data/antifam/',
-        interproscan_data_init = 'lib/interproscan_data/test_log.txt',
-        interproscan = expand("results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml", sample=SAMPLE, prefix=PREFIX)
+        #funannotate = expand("results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
+        #funannotate_setup = "lib/busco/saccharomycetales/dataset.cfg",
+        funannotate_mask = expand("results/{prefix}/funannotate/{sample}/{sample}_masked.fa", sample=SAMPLE, prefix=PREFIX),
+        funannotate_train = expand("results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam", sample=SAMPLE, prefix=PREFIX),
+        funannotate_predict = expand("results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
+        funannotate_update = expand("results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),        
+        interproscan_data_dl = config["funqcd_lib"] + "interproscan_data/data/antifam/",
+        #interproscan_data_init = config["funqcd_lib"] + "interproscan_data/test_log.txt",
+        interproscan = expand("results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml", sample=SAMPLE, prefix=PREFIX),
+        eggnog_data_dl = config["funqcd_lib"] + "eggnog_data/eggnog.db",
+        eggnog = expand("results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations", sample=SAMPLE, prefix=PREFIX),
+        funannotate_annotate = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
 
 rule coverage:
     input:
-        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
-        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),
+        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
+        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz")),
+        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
+        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),
     output:
         coverage = f"results/{{prefix}}/raw_coverage/{{sample}}/{{sample}}_coverage.json",
     params:
@@ -159,11 +178,13 @@ rule coverage:
 
 rule quality_raw:
     input:
-        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
-        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),
+        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
+        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz")),
+        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
+        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),
     output:
-        raw_fastqc_report_fwd = f"results/{{prefix}}/quality_raw/{{sample}}/{{sample}}_Forward/{{sample}}_R1_001_fastqc.html",
-        raw_fastqc_report_rev = f"results/{{prefix}}/quality_raw/{{sample}}/{{sample}}_Reverse/{{sample}}_R2_001_fastqc.html",
+        raw_fastqc_report_fwd = f"results/{{prefix}}/quality_raw/{{sample}}/{{sample}}_Forward/{{sample}}_R1_fastqc.html",
+        raw_fastqc_report_rev = f"results/{{prefix}}/quality_raw/{{sample}}/{{sample}}_Reverse/{{sample}}_R2_fastqc.html",
     log:
         "logs/{prefix}/quality_raw/{sample}/{sample}.log"
     params:
@@ -183,8 +204,10 @@ rule quality_raw:
 
 rule trimmomatic_pe:
     input:
-        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
-        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz"))  
+        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
+        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz"))
+        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
+        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),  
     output:
         r1 = f"results/{{prefix}}/trimmomatic/{{sample}}/{{sample}}_R1_trim_paired.fastq.gz",
         r2 = f"results/{{prefix}}/trimmomatic/{{sample}}/{{sample}}_R2_trim_paired.fastq.gz", 
@@ -202,9 +225,13 @@ rule trimmomatic_pe:
         window_size_quality=config["window_size_quality"],
         minlength=config["minlength"],
         headcrop_length=config["headcrop_length"],
-        threads = config["ncores"],
+        #threads = config["ncores"],
     log:
         "logs/{prefix}/trimmomatic/{sample}/{sample}.log"
+    threads: 8
+    # threads: workflow.cores
+    # This has been changed to specifically use 8 cores (the previous default number of cores used)
+    # Before, this always allocated the maximum number of cores
     #conda:
     #    "envs/trimmomatic.yaml"
     singularity:
@@ -213,7 +240,7 @@ rule trimmomatic_pe:
     #    "Bioinformatics",
     #    "trimmomatic"
     shell:
-        "trimmomatic PE {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} -threads {params.threads} ILLUMINACLIP:{params.adapter_filepath}:{params.seed}:{params.palindrome_clip}:{params.simple_clip}:{params.minadapterlength}:{params.keep_both_reads} SLIDINGWINDOW:{params.window_size}:{params.window_size_quality} MINLEN:{params.minlength} HEADCROP:{params.headcrop_length} &>{log}"
+        "trimmomatic PE {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} -threads {threads} ILLUMINACLIP:{params.adapter_filepath}:{params.seed}:{params.palindrome_clip}:{params.simple_clip}:{params.minadapterlength}:{params.keep_both_reads} SLIDINGWINDOW:{params.window_size}:{params.window_size_quality} MINLEN:{params.minlength} HEADCROP:{params.headcrop_length} &>{log}"
 
 rule quality_aftertrim:
     input:
@@ -401,12 +428,14 @@ rule busco:
     params: 
         outdir = "results/{prefix}/busco/{sample}/",
         prefix = "{sample}",
-        threads = config["ncores"],
+        # threads = config["ncores"],
     #conda:
     #    "envs/busco.yaml"
     singularity:
         #"docker://staphb/busco:5.7.1-prok-bacteria_odb10_2024-01-08"
         "docker://ezlabgva/busco:v5.7.1_cv1"
+    threads: 8
+    # threads: workflow.cores
     #envmodules:
     #    "Bioinformatics",
     #    "busco"
@@ -420,13 +449,14 @@ rule skani:
         skani_output = f"results/{{prefix}}/skani/{{sample}}/{{sample}}_skani_output.txt"
     params:
         skani_ani_db = config["skani_db"],
-        threads = 4
+        #threads = 4
+    threads: 4
     #conda:
     #    "envs/skani.yaml"
     singularity:
         "docker://staphb/skani:0.2.1"
     shell:
-        "skani search {input.spades_contigs_file} -d {params.skani_ani_db} -o {output.skani_output} -t {params.threads}"
+        "skani search {input.spades_contigs_file} -d {params.skani_ani_db} -o {output.skani_output} -t {threads}"
         
 #rule multiqc:
 #    input:
@@ -456,19 +486,31 @@ rule skani:
 #        multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report {params.resultsoutdir}
 #        """
 
+# This adds another BUSCO database for funannotate to use
+# This is bound via singularity to add it to the existing databases
+# rule funannotate_setup:
+#     output:
+#         busco_db = "lib/busco/saccharomycetales/dataset.cfg"
+#     params:
+#         out_dir = "lib/busco/",
+#     singularity:
+#         "docker://nextgenusfs/funannotate:v1.8.17"
+#     shell:
+#         """
+#         funannotate setup --busco_db saccharomycetales --install busco --database {params.out_dir} 
+#         """
+
 # This needs to be split into individual steps for clean/sort/mask, predict, and annotate
-# For now, I've only split out the annotate step
-rule funannotate:
+# I've split out the predict and annotate steps
+# The new order is setup, mask, train, predict, update, interproscan, eggnong, annotate
+rule funannotate_mask:
     input:
         spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
     output:
-        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
-        #funannotate_annotate_out = directory("results/{prefix}/funannotate/{sample}/annotate_results/"),
-        #funannotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa"
+        masked_assembly = "results/{prefix}/funannotate/{sample}/{sample}_masked.fa"
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
-        sample = "{sample}",
-        cpus = config["ncores"]
+        sample = "{sample}"
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
@@ -476,16 +518,92 @@ rule funannotate:
         funannotate clean -i {input.spades_l1000_assembly} -o {params.out_dir}{params.sample}_cleaned.fa
         funannotate sort -i {params.out_dir}{params.sample}_cleaned.fa -o {params.out_dir}{params.sample}_sorted.fa --minlen 0
         funannotate mask -i {params.out_dir}{params.sample}_sorted.fa -o {params.out_dir}{params.sample}_masked.fa
-        funannotate predict -i {params.out_dir}{params.sample}_masked.fa -o {params.out_dir} --species '{params.sample}' --augustus_species candida_albicans --cpus {params.cpus}
-        funannotate annotate -i {output.funannotate_predict_out} -o {params.out_dir} --cpus {params.cpus}
+        """
+# removed: funannotate annotate -i {output.funannotate_predict_out} -o {params.out_dir} --cpus {threads}
+# removed: funannotate predict -i {params.out_dir}{params.sample}_masked.fa -o {params.out_dir} --species '{params.sample}' --augustus_species candida_albicans --cpus {threads}
+
+# in progress
+# this requires the RNA-seq data from Teresa, and assumes that the files are in a specific format
+# specifically, that read 1 contains '_R1_' in the file name, that all files are in fastq.gz format and in RF order for stranded RNA-seq, and that they can be ordered alphabetically
+rule funannotate_train:
+    input:
+        masked_assembly = "results/{prefix}/funannotate/{sample}/{sample}_masked.fa"
+    output:
+        funannotate_training_rna_bam = "results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam",
+        funannotate_training_pasa_gff = "results/{prefix}/funannotate/{sample}/training/funannotate_train.pasa.gff3",
+        funannotate_training_stringtie = "results/{prefix}/funannotate/{sample}/training/funannotate_train.stringtie.gtf",
+        funannotate_training_transc_align = "results/{prefix}/funannotate/{sample}/training/funannotate_train.transcripts.gff3",
+    params:
+        out_dir = "results/{prefix}/funannotate/{sample}/",
+        sample = "{sample}",
+        rna_data_r1 = ' '.join(sorted([config["funqcd_lib"] + 'rna_seq_data/' + x for x in os.listdir(config["funqcd_lib"] + 'rna_seq_data/') if '_R1_' in x and 'fastq.gz' in x])),
+        rna_data_r2 = ' '.join(sorted([config["funqcd_lib"] + 'rna_seq_data/' + x for x in os.listdir(config["funqcd_lib"] + 'rna_seq_data/') if '_R2_' in x and 'fastq.gz' in x])),
+        mem_g = str(int(config["mem_mb"]/1000)) + "G",
+        test = vars(workflow.resources)
+    # threads: workflow.cores
+    threads: 8
+    resources:
+        mem_mb = config["mem_mb"]
+    singularity:
+        "docker://nextgenusfs/funannotate:v1.8.17"
+    shell:
+        """
+        funannotate train --input {input.masked_assembly} --out {params.out_dir} \
+        --left {params.rna_data_r1} --right {params.rna_data_r2} --stranded RF \
+        --jaccard_clip --species "Candida auris" --isolate {params.sample} --cpus {threads} --memory {params.mem_g}
         """
 
 # in progress
+# This should automatically detect the four training files generated previously, even without explicit input
+# All steps should run with 'pasa' or 'rna-bam' under Training-Methods. Nothing should run with 'busco'.
+rule funannotate_predict:
+    input:
+        masked_assembly = "results/{prefix}/funannotate/{sample}/{sample}_masked.fa",
+        funannotate_training_rna_bam = "results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam",
+        busco_db = config["funqcd_lib"] + "busco/saccharomycetales/dataset.cfg"
+    output:
+        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
+        funannotate_predict_out = directory("results/{prefix}/funannotate/{sample}/predict_results/")
+    params:
+        out_dir = "results/{prefix}/funannotate/{sample}/",
+        sample = "{sample}"
+    threads: 8
+    singularity:
+        "docker://nextgenusfs/funannotate:v1.8.17"
+    shell:
+        # removed --species "Candida auris" --isolate {params.sample}
+        # consider changing output names and re-adding
+        """
+        funannotate predict --input {input.masked_assembly} --out {params.out_dir} \
+        --species {params.sample} \
+        --busco_seed_species candida_albicans --busco_db saccharomycetales --cpus {threads}
+        """
+
+# in progress
+rule funannotate_update:
+    input:
+        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
+    output:
+        funannotate_update_proteins = "results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa",
+        funannotate_update_out = directory("results/{prefix}/funannotate/{sample}/update_results/")
+    params:
+        out_dir = "results/{prefix}/funannotate/{sample}/",
+        sample = "{sample}"
+    threads: 8
+    singularity:
+        "docker://nextgenusfs/funannotate:v1.8.17"
+    shell:
+        """
+        funannotate update --input {params.out_dir} --cpus {threads}
+        """
+
+
 # This downloads the databases needed for InterProScan and moves them to the directory bound via singularity
+# in progress for local download (replace path with config["funqcd_lib"])
 rule interproscan_data_dl:
     output:
         #interproscan_data_dl_dir = directory('interproscan-5.71-102.0/data/')
-        interproscan_data = directory('lib/interproscan_data/data/antifam/')
+        interproscan_data = directory(config["funqcd_lib"] + "interproscan_data/data/antifam/")
     shell:
         """
         curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.71-102.0/alt/interproscan-data-5.71-102.0.tar.gz
@@ -502,76 +620,89 @@ rule interproscan_data_dl:
         """
 
 # This initializes and tests the InterProScan data, using a script called ips_setup.sh
-rule interproscan_data_init:
-    input: 
-        interproscan_data = 'lib/interproscan_data/data/antifam/'
-    output:
-        test_log = 'lib/interproscan_data/test_log.txt'
-    singularity:
-        "docker://interpro/interproscan:5.71-102.0"
-    shell:
-        """
-        bash ips_setup.sh > lib/interproscan_data/test_log.txt
-        """
+# rule interproscan_data_init:
+#     input: 
+#         interproscan_data = config["funqcd_lib"] + "interproscan_data/data/antifam/"
+#     output:
+#         test_log = config["funqcd_lib"] + "interproscan_data/test_log.txt"
+#     singularity:
+#         "docker://interpro/interproscan:5.71-102.0"
+#     shell:
+#         """
+#         bash ips_setup.sh > lib/interproscan_data/test_log.txt
+#         """
 
-# in progress
 rule interproscan:
     input:
-        interproscan_data = 'lib/interproscan_data/data/antifam/',
-        test_log = 'lib/interproscan_data/test_log.txt',
+        interproscan_data = config["funqcd_lib"] + "interproscan_data/data/antifam/",
+        test_log = config["funqcd_lib"] + "interproscan_data/test_log.txt",
         funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
     output:
         interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml"
     singularity:
         "docker://interpro/interproscan:5.71-102.0"
     params:
-        out_dir = "results/{prefix}/funannotate/{sample}/",
+        out_dir = "results/{prefix}/funannotate/{sample}/interproscan/",
         sample = "{sample}",
         # cpus = config["ncores"]
-        # add "--cpu {params.cpus}" to the command below, this can cause issues if snakemake tries to run multiple interproscan jobs in parallel
+    threads: 8
     shell:
         """
-        bash /opt/interproscan/interproscan.sh --input {input.funannotate_predict_proteins} --output-dir {params.out_dir} --disable-precalc 
+        bash /opt/interproscan/interproscan.sh --input {input.funannotate_predict_proteins} --output-dir {params.out_dir} \
+        --disable-precalc --cpu {threads}
         """
 
 # in progress
 # this downloads the databases needed for eggnog to run
-# rule eggnog_data_dl:
-#     output:
-#         eggnog_data = directory('lib/eggnog_data/')
-#         # This needs to be bound via profile/config.yaml as well
-#         # add a subdirectory to this output
-#     singularity:
-#         "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
-#     shell:
-#         """
-#         download_eggnog_data.py -y --data_dir lib/eggnog_data/
-#         """
-#
-# # in progress
-# rule eggnog:
-#     input:
-#         eggnog_data = 'lib/eggnog_data/'
-#         # add subdirectory and bind
-#         funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
-#     singularity:
-#         "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
-#     shell:
-#         """
-#         emapper.py -y --data_dir lib/eggnog_data/
-#         """
+rule eggnog_data_dl:
+    output:
+        eggnog_data = config["funqcd_lib"] + "eggnog_data/eggnog.db"
+    singularity:
+        "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
+    shell:
+        """
+        download_eggnog_data.py -y --data_dir lib/eggnog_data/
+        """
 
 # in progress
-# rule funannotate_annotate:
-#     input:
-#         funannotate_predict_out = "results/{prefix}/funannotate/{sample}/predict_results/",
-#         interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/"
-#     output:
-#         funannotate_annotate_out = directory("results/{prefix}/funannotate/{sample}/annotate_results/")
-#     params:
-#         out_dir = "results/{prefix}/funannotate/{sample}/",
-#         sample = "{sample}",
-#         cpus = config["ncores"]
-#     shell:
-#         """
-#         funannotate annotate -i {input.funannotate_predict_out} -o {params.out_dir} --cpus {params.cpus} --iprscan {input.interproscan_out}
+rule eggnog:
+    input:
+        eggnog_data = config["funqcd_lib"] + "eggnog_data/eggnog.db",
+        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
+    output:
+        eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations"
+    singularity:
+        "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
+    params:
+        eggnog_data_dir = config["funqcd_lib"] + "eggnog_data/",
+        out_dir = "results/{prefix}/funannotate/{sample}/eggnog/",
+        sample = "{sample}"
+    threads: 8
+    shell:
+        """
+        emapper.py -i {input.funannotate_predict_proteins} --itype proteins --data_dir {params.eggnog_data_dir} -m diamond \
+        --output {params.sample} --output_dir {params.out_dir} --cpu {threads}
+        """
+
+# in progress
+rule funannotate_annotate:
+    input:
+        funannotate_predict_out = "results/{prefix}/funannotate/{sample}/update_results/",
+        #bkm
+        interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml",
+        eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations",
+        busco_db = config["funqcd_lib"] + "busco/saccharomycetales/dataset.cfg"
+    output:
+        funannotate_annotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa"
+    params:
+        out_dir = "results/{prefix}/funannotate/{sample}/",
+        sample = "{sample}",
+        # cpus = config["ncores"]
+    threads: 8
+    singularity:
+        "docker://nextgenusfs/funannotate:v1.8.17"
+    shell:
+        """
+        funannotate annotate -i {input.funannotate_predict_out} -o {params.out_dir} --cpus {threads} \
+        --iprscan {input.interproscan_out} --eggnog {input.eggnog_out} --busco_db saccharomycetales
+        """
