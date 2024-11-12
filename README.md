@@ -12,6 +12,8 @@ This pipeline performs the following steps:
 * [SPAdes](https://github.com/ablab/spades) is used to assemble trimmed reads into contigs.
 * [Kraken2](https://github.com/DerrickWood/kraken2) is used to provide detailed reports on the taxonomic composition of the trimmed raw reads.
 * [Funannotate](https://github.com/nextgenusfs/funannotate) is used for structural and functional annotation of the assembly from SPAdes.
+* [InterProScan](https://github.com/ebi-pf-team/interproscan) is used for functional annotation of the genome, with its results used by Funannotate.
+* [EggNOG-Mapper](https://github.com/eggnogdb/eggnog-mapper) is used for functional annotation of the genome, with its results used by Funannotate.
 * [AuriClass](https://github.com/RIVM-bioinformatics/auriclass) is used to determine the clade of Candida auris.
 * [BUSCO](https://busco.ezlab.org/) is used to evaluate the completeness of the assembly.
 
@@ -38,6 +40,8 @@ results/2024-05-21_QCD_Project_MDHHS/
 |   ├── spades
 |   ├── trimmomatic
 |   └── funannotate
+|		├──interproscan
+|		└──eggnog
 └── another_sample_name
 ```
 
@@ -87,21 +91,31 @@ module load snakemake singularity
 This workflow makes use of singularity containers available through [State Public Health Bioinformatics group](https://github.com/StaPH-B/docker-builds). If you are working on Great Lakes (umich's HPC cluster), you can load snakemake and singularity modules as shown above. However, if you are running it on your local or other computing platform, ensure you have snakemake and singularity installed.
 
 
-## Setup config, samples and cluster files
+## Set up configuration files
 
-**_If you are just testing this pipeline, the config and sample files are already loaded with test data, so you do not need to make any additional changes to them. However, it is a good idea to change the prefix (name of your output folder) in the config file to give you an idea of what variables need to be modified when running your own samples on funQCD._**
+This pipeline requires several files that specify where your raw reads are located, where external databases can be found, how much memory is available, and several other parameters. Once funQCD is installed, you'll need to update the following files as well. If you are just testing the pipeline, these files already contain example paths you can use.
 
-### Config
-As an input, the snakemake file takes a config file where you can set the path to `sample.tsv`, path to your raw sequencing reads, path to adapter fasta file etc. Instructions on how to modify `config/config.yaml` is found in `config.yaml`. 
+### 1) config/config.yaml
+This file contains information about where the sequencing reads and databases can be found. Detailed instructions for each section are provided in the file itself, with a short description of the most important ones here.
+	short_reads: This is the most important section to edit. It must contain the full path to a directory containing your raw sequencing reads, as .fastq.gz files with standardized names (see below).
+	samples: This is the path to a .csv file containing the names of the raw reads you want to process (see next section).
+	prefix: This is the name of the directory containing all outputs, which will appear under `results/` after you run funQCD. This should be a unique name for each run of funQCD.
+	adapter_file: This is the path to the adapter file used for Trimmomatic.
+	skani_db: This is the path to the database used while running skani.
+	funqcd_lib: This is the path to a directory containing several databases required for InterProScan, EggNOG-mapper, and funannotate, as well as RNA-seq data for funannotate.
 
-### Samples
-Add samples to `config/sample.tsv` following the explanation provided below. `sample.tsv` should be a comma seperated file consisting of two columns—`sample_id` and `illumina_r1`.
+Currently, funQCD expects your sequencing reads to be named in a specific format:
+[SampleName]_R[number].fastq.gz
+If your reads are named differently, then the script will fail to recognize them. For example, `TO315_R1.fastq.gz` would work, but `TO315_R1_001.fastq.gz` would not. funQCD is currently being updated to fix this issue. 
+
+### 2) config/samples.csv
+This file contains the names of your raw read files. These should exactly match the names used in the directory specified by `short_reads`. `sample.csv` should be a comma-seperated file consisting of two columns: `sample_id` and `illumina_r1`.
 
 * `sample_id` is the prefix that should be extracted from your FASTQ reads. For example, in  your raw FASTQ files directory, if you have a file called `Rush_KPC_110_R1.fastq.gz`, your sample_id would be `Rush_KPC_110`.
 
-* `illumina_r1` is the name of the entire raw FASTQ file. In the same directory,  if your file is called `Rush_KPC_110_R1.fastq.gz`, your sample_id would be `Rush_KPC_110_R1.fastq.gz`. **_Only include forward reads._**
+* `illumina_r1` is the full name of the corresponding raw FASTQ file containing the forward reads. In the same directory, if your file is called `Rush_KPC_110_R1.fastq.gz`, your sample_id would be `Rush_KPC_110_R1.fastq.gz`. **_Only include the forward reads here._**
 
-You can create sample.tsv file using the following for loop. Replace *path_to_your_raw_reads* below with the actual path to your raw sequencing reads.
+You can create sample.csv file using the following for loop. Replace *path_to_your_raw_reads* below with the actual path to your raw sequencing reads.
 
 ```
 
@@ -115,9 +129,13 @@ done >> config/sample.tsv
 
 ```
 
-### Cluster file
+### 3) profile/config.yaml
+This file contains the options for running snakemake. You can change the resources funQCD will attempt to use here (such as cores and memory). If you changed the location of the funqcd_lib above, you'll also need to change the directories bound via singularity in this file as well.
 
-Reduce the walltime (to ~6 hours) in `config/cluster.json` to ensure the jobs are being submitted in a timely manner. 
+
+### 4) config/cluster.json
+
+This file contains parameters for snakemake's cluster execution mode. Reduce the walltime (to ~6 hours) in `config/cluster.json` to ensure the jobs are being submitted in a timely manner. 
 
 ## Quick start
 
@@ -127,27 +145,27 @@ Reduce the walltime (to ~6 hours) in `config/cluster.json` to ensure the jobs ar
 
 ```
 
-snakemake -s QCD.smk --dryrun -p
+snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/ -p
 
 ```
 
-> Run funQCD locally
+> You can attempt to run funQCD locally as an additional test. This is not recommended for most cases, as the memory, time, and CPU requirements can be high for some steps.
 
 ```
 
-snakemake -s funQCD.smk -p --configfile config/config.yaml --cores all
+snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/
 
 ```
 
->Run funQCD on Great lakes HPC using a job script (15g memory, 8 cpus per task, 3 hours):
+> Run funQCD on Great Lakes HPC using a job script (15g memory, 16 cpus per task, 20 hours):
 
 ```
 module load Bioinformatics snakemake singularity
-snakemake -s workflow/fQCD.smk -p --use-singularity --configfile config/config.yaml --latency-wait 1000 --nolock --cores 8
+snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/
  
 ```
 
->funQCD can also be run using the following command:
+> funQCD can also be run in cluster execution mode using the following command (testing in progress):
 
 ```
 
