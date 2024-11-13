@@ -142,7 +142,7 @@ rule all:
         #skani_ref_genome_results = expand("results/{prefix}/skani/{sample}/{sample}_skani_output.txt", sample=SAMPLE, prefix=PREFIX),
         #coverage_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_Final_Coverage.txt", prefix=PREFIX),
         #skani_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_Skani_report_final.csv", prefix=PREFIX),
-        #multiqc_report = expand("results/{prefix}/{prefix}_Report/multiqc/{prefix}_QC_report.html", prefix=PREFIX),
+        multiqc_report = expand("results/{prefix}/multiqc/{prefix}_QC_report.html", prefix=PREFIX, sample = SAMPLE),
         ##mlst_final_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_MLST_results.csv", prefix=PREFIX),
         #QC_summary = expand("results/{prefix}/{prefix}_Report/data/{prefix}_QC_summary.csv", prefix=PREFIX),
         #QC_plot = expand("results/{prefix}/{prefix}_Report/fig/{prefix}_Coverage_distribution.png", prefix=PREFIX)
@@ -158,6 +158,7 @@ rule all:
         eggnog_data_dl = config["funqcd_lib"] + "eggnog_data/eggnog.db",
         eggnog = expand("results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations", sample=SAMPLE, prefix=PREFIX),
         funannotate_annotate = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
+        busco_final = expand("results/{prefix}/busco/busco_output/batch_summary.txt", prefix = PREFIX)
 
 rule coverage:
     input:
@@ -458,33 +459,33 @@ rule skani:
     shell:
         "skani search {input.spades_contigs_file} -d {params.skani_ani_db} -o {output.skani_output} -t {threads}"
         
-#rule multiqc:
-#    input:
-#        quast_report = f"results/{{prefix}}/{{sample}}/quast/report.tsv",
-#        prokka_gff = f"results/{{prefix}}/{{sample}}/prokka/{{sample}}.gff",
-#        spades_assembly = f"results/{{prefix}}/{{sample}}/spades/contigs.fasta",
-#        kraken_report = f"results/{{prefix}}/{{sample}}/kraken/{{sample}}_kraken_report.tsv",
-#        coverage = f"results/{{prefix}}/{{sample}}/raw_coverage/{{sample}}_coverage.json",
-#        aftertrim_fastqc_report_fwd = f"results/{{prefix}}/{{sample}}/quality_aftertrim/{{sample}}_Forward/{{sample}}_R1_trim_paired_fastqc.html",
-#        aftertrim_fastqc_report_rev = f"results/{{prefix}}/{{sample}}/quality_aftertrim/{{sample}}_Reverse/{{sample}}_R2_trim_paired_fastqc.html",
-#        raw_fastqc_report_fwd = f"results/{{prefix}}/{{sample}}/quality_raw/{{sample}}_Forward/{{sample}}_R1_fastqc.html",
-#        raw_fastqc_report_rev = f"results/{{prefix}}/{{sample}}/quality_raw/{{sample}}_Reverse/{{sample}}_R2_fastqc.html"
-#    output:
-#        multiqc_report = f"results/{{prefix}}/multiqc/{{prefix}}_QC_report.html",
-#    params:
-#        resultsoutdir = "results/{prefix}",
-#        outdir = "results/{prefix}/multiqc",
-#        prefix = "{prefix}",
-    #conda:
-    #    "envs/multiqc.yaml"
-    #singularity:
-        #"docker://staphb/multiqc:1.18"
-#    shell:
-#        """
-#        module load Bioinformatics
-#        module load multiqc
-#        multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report {params.resultsoutdir}
-#        """
+rule multiqc:
+    input:
+        quast_report = expand("results/{prefix}/quast/{sample}/report.tsv", sample = SAMPLE, prefix = PREFIX),
+        #prokka_gff = "results/{prefix}/{sample}/prokka/{sample}.gff",
+        #spades_assembly = "results/{prefix}/spades/{sample}/contigs.fasta",
+        #kraken_report = "results/{prefix}/{sample}/kraken/{sample}_kraken_report.tsv",
+        #coverage = "results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json",
+        aftertrim_fastqc_report_fwd = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        aftertrim_fastqc_report_rev = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        raw_fastqc_report_fwd = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX)
+    output:
+        multiqc_report = "results/{prefix}/multiqc/{prefix}_QC_report.html",
+    params:
+        resultsoutdir = "results/{prefix}",
+        outdir = "results/{prefix}/multiqc",
+        prefix = "{prefix}",
+        quast_dir = "results/{prefix}/quast/",
+        raw_fastqc_dir = "results/{prefix}/quality_raw/",
+        aftertrim_fastqc_dir = "results/{prefix}/quality_aftertrim/",
+    singularity:
+        "docker://multiqc/multiqc:v1.25.1"
+    shell:
+        """
+        multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report \
+        {params.quast_dir} {params.raw_fastqc_dir} {params.aftertrim_fastqc_dir}
+        """
 
 # This adds another BUSCO database for funannotate to use
 # This is bound via singularity to add it to the existing databases
@@ -688,10 +689,9 @@ rule eggnog:
 rule funannotate_annotate:
     input:
         funannotate_predict_out = "results/{prefix}/funannotate/{sample}/update_results/",
-        #bkm
         interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml",
         eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations",
-        busco_db = config["funqcd_lib"] + "busco/saccharomycetales/dataset.cfg"
+        busco_db = config["funqcd_lib"] + "busco/lineages/saccharomycetes_odb10/dataset.cfg"
     output:
         funannotate_annotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa"
     params:
@@ -704,5 +704,23 @@ rule funannotate_annotate:
     shell:
         """
         funannotate annotate -i {input.funannotate_predict_out} -o {params.out_dir} --cpus {threads} \
-        --iprscan {input.interproscan_out} --eggnog {input.eggnog_out} --busco_db saccharomycetales
+        --iprscan {input.interproscan_out} --eggnog {input.eggnog_out} --busco_db saccharomycetes_odb10
+        """
+
+rule busco_final:
+    input:
+        funannotate_annotate_proteins = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", prefix = PREFIX, sample = SAMPLE)
+    output:
+        busco_out = "results/{prefix}/busco/busco_output/batch_summary.txt"
+    params:
+        prefix = "{prefix}",
+        busco_db = config["funqcd_lib"] + "busco/"
+    threads: 8
+    singularity:
+        "docker://ezlabgva/busco:v5.7.0_cv1"
+    shell:
+        """
+        mkdir -p results/{params.prefix}/busco/input/
+        cp results/{params.prefix}/funannotate/*/annotate_results/*.proteins.fa results/{params.prefix}/busco/input/
+        busco -f --in results/{params.prefix}/busco/input/ --mode protein --lineage_dataset saccharomycetes_odb10 --out_path results/{params.prefix}/busco/ -c {threads} --out busco_output --offline --download_path {params.busco_db}
         """

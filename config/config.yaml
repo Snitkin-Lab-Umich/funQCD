@@ -65,12 +65,13 @@ skani_db: /nfs/turbo/umms-esnitkin/database/skani/gtdb_skani_database_ani
 funqcd_lib: /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_11_11_funQCD_database/lib/
 # This directory needs to have a specific structure:
 # lib
-# |—rna_seq_data
-# |—eggnog_data
-# |—busco
-#     |—saccharomycetales
-# |—interproscan_data
-#     |—data 
+# ├—rna_seq_data
+# ├—eggnog_data
+# ├—busco
+#     └-lineages
+#       └-saccharomycetes_odb10
+# └—interproscan_data
+#     └-data 
 # You can create this file structure in your working directory and the setup rules will download the relevant databases
 # This will likely require you to set up the funannotate database separately:
 # 
