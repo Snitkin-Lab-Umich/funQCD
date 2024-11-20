@@ -6,7 +6,8 @@ funQCD is a quality control pipeline for short read fungal data, with a focus on
 
 This pipeline performs the following steps:
 
-* [Fastqc](https://github.com/s-andrews/FastQC) is used to generate HTML reports to asses quality of sequencing reads before and after trimming reads. 
+* [Fastqc](https://github.com/s-andrews/FastQC) is used to generate HTML reports to asses quality of sequencing reads before and after trimming reads.
+* [QUAST](https://quast.sourceforge.net/) is used for quality assesment of the assembly.
 * [Trimmomatic](https://github.com/usadellab/Trimmomatic) is used to trim and filter low-quality bases and adapter sequences from raw FASTQ reads.
 * [fastq-scan](https://github.com/rpetit3/fastq-scan) is used to estimate genome coverage of FASTQ files.
 * [SPAdes](https://github.com/ablab/spades) is used to assemble trimmed reads into contigs.
@@ -16,18 +17,18 @@ This pipeline performs the following steps:
 * [EggNOG-Mapper](https://github.com/eggnogdb/eggnog-mapper) is used for functional annotation of the genome, with its results used by Funannotate.
 * [AuriClass](https://github.com/RIVM-bioinformatics/auriclass) is used to determine the clade of Candida auris.
 * [BUSCO](https://busco.ezlab.org/) is used to evaluate the completeness of the assembly.
+* [Multiqc](https://github.com/MultiQC/MultiQC) aggregates multiple QC results across all samples to produce a single HTML report.
 
 
 Steps from QCD not currently used:
 
 * The assembled contigs from [SPAdes](https://github.com/ablab/spades) are passed through [Prokka](https://github.com/tseemann/prokka) for annotation, [QUAST](https://quast.sourceforge.net/) for assembly statistics, [MLST](https://github.com/tseemann/mlst) for determining sequence type based on sequences of housekeeping genes, [AMRFinderPlus](https://github.com/ncbi/amr) to identify antimicrobial resistance genes, [skani](https://github.com/bluenote-1577/skani) to identify closest reference genome, and [BUSCO](https://busco.ezlab.org/) for assembly completeness statistics.
-* [Multiqc](https://github.com/MultiQC/MultiQC) aggregates the final outputs from [Fastqc](https://github.com/s-andrews/FastQC), [Kraken2](https://github.com/DerrickWood/kraken2) , [Prokka](https://github.com/tseemann/prokka) and [QUAST](https://quast.sourceforge.net/) to produce a HTML report
 
 The workflow generates all the output in the output prefix folder set in the config file (instructions on setup found [below](#config)). Each workflow step gets its own individual folder as shown:
 
 ```
 results
-|—— run_name
+└─—— run_name
    ├── auriclass
    ├── busco
    ├── downsample
@@ -90,7 +91,7 @@ module load snakemake singularity
 This workflow makes use of singularity containers available through [State Public Health Bioinformatics group](https://github.com/StaPH-B/docker-builds). If you are working on Great Lakes (umich's HPC cluster), you can load snakemake and singularity modules as shown above. However, if you are running it on your local or other computing platform, ensure you have snakemake and singularity installed.
 
 
-## Set up configuration files
+## Setting up configuration files
 
 This pipeline requires several files that specify where your raw reads are located, where external databases can be found, how much memory is available, and several other parameters. Once funQCD is installed, you'll need to update the following files as well. If you are just testing the pipeline, these files already contain example paths you can use.
 
@@ -131,13 +132,11 @@ done >> config/sample.tsv
 ```
 
 ### 3) profile/config.yaml
-This file contains the options for running snakemake. The most important section to change is `slurm_account`, which needs to match an account that can submit jobs to the Great Lakes HPC cluster. If you changed the location of the funqcd_lib above, you'll need to change the directories bound via singularity in this file as well. You can set also limits on the resources funQCD will attempt to use here. For example, adding the line `resources: mem_mb=40000` will limit all jobs to ~40G of memory. 
+This file contains the options for running snakemake. The most important section to change is `slurm_account`, which needs to match an account that can submit jobs to the Great Lakes HPC cluster. If you changed the location of the funqcd_lib above, you'll need to change the directories bound via singularity in this file as well. You can also set limits on the resources funQCD will attempt to use here. For example, adding the line `resources: mem_mb=40000` will limit all jobs to ~40G of memory. 
 
-## Quick start
+## Running funQCD
 
-### Run funQCD on a set of samples.
-
-> Preview the steps in funQCD by performing a dryrun of the pipeline. 
+> First, perform a dry run of funQCD by running the following command. This will show the steps and commands that funQCD will execute in the real run, without actually executing anything.
 
 ```
 
@@ -145,16 +144,16 @@ snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./pr
 
 ```
 
-> The snakemake options present in profile/config.yaml should be visible in the dry run (such as memory and runtime for each rule). By default, --slurm is enabled in these options, and snakemake will submit jobs to the cluster using the account in your profile. To start the run, use a job script with minimal CPUs and memory, but a long runtime.  
+> The snakemake options present in profile/config.yaml should be visible in the dry run (such as memory and runtime for each rule). By default, --slurm is enabled in these options, and snakemake will submit jobs to the cluster using the account in your profile. If everything looks correct, start the run using a job script with minimal CPUs, minimal memory, and a long runtime.  
 
 ```
 #!/bin/bash
 
-#SBATCH --mail-user=[your email]
+#SBATCH --mail-user=[your_email]
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --export=ALL
 #SBATCH --partition=standard
-#SBATCH --account=[your account]
+#SBATCH --account=[your_account]
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=500m
