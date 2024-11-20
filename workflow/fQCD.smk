@@ -172,6 +172,9 @@ rule coverage:
         size=config["genome_size"]
     #conda:
     #    "envs/fastq-scan.yaml"
+    resources:
+        mem_mb=2000,
+        runtime=20
     singularity:
         "docker://staphb/fastq-scan:1.0.1"
     shell:
@@ -192,6 +195,9 @@ rule quality_raw:
         outdir="results/{prefix}/quality_raw/{sample}/{sample}"
     #conda:
     #    "envs/fastqc.yaml"
+    resources:
+        mem_mb = 1000,
+        runtime = 10
     singularity:
         "docker://staphb/fastqc:0.12.1"
     #envmodules:
@@ -237,6 +243,9 @@ rule trimmomatic_pe:
     #    "envs/trimmomatic.yaml"
     singularity:
         "docker://staphb/trimmomatic:0.39"
+    resources:
+        mem_mb = 5000,
+        runtime = 30
     #envmodules:
     #    "Bioinformatics",
     #    "trimmomatic"
@@ -258,6 +267,9 @@ rule quality_aftertrim:
     #    "envs/fastqc.yaml"
     singularity:
         "docker://staphb/fastqc:0.12.1"
+    resources:
+        mem_mb = 3000,
+        runtime = 30
     #envmodules:
     #    "Bioinformatics",
     #    "fastqc"
@@ -276,6 +288,9 @@ rule downsample:
         outr2 = f"results/{{prefix}}/downsample/{{sample}}/{{sample}}_R2_trim_paired.fastq.gz",
     params:
         gsize = config["genome_size"],
+    resources:
+        mem_mb = 3000,
+        runtime = 30
     run:
         downsample_reads({input.r1}, {input.r2}, {output.outr1}, {output.outr2}, {params.gsize})
 
@@ -305,6 +320,7 @@ rule assembly:
         spades_assembly = f"results/{{prefix}}/spades/{{sample}}/contigs.fasta",
     params:
         out_dir = "results/{prefix}/spades/{sample}/",
+        mem_g = 15
         #db = config["kraken_db"],
     #conda:
     #    "envs/spades.yaml"
@@ -313,8 +329,12 @@ rule assembly:
     #envmodules:
     #    "Bioinformatics",
     #    "spades/4.0.0"
+    threads: 8
+    resources:
+        mem_mb = 15000,
+        runtime=30
     shell:
-        "spades.py --isolate --pe1-1 {input.r1} --pe1-2 {input.r2} -o {params.out_dir}"
+        "spades.py --isolate --pe1-1 {input.r1} --pe1-2 {input.r2} -o {params.out_dir} --threads {threads} --memory {params.mem_g}"
 
 #rule bioawk:
 #    input:
@@ -343,6 +363,9 @@ rule bioawk:
         prefix = "{sample}"
     #conda:
     #    "envs/bioawk.yaml"
+    resources:
+        mem_mb = 5000,
+        runtime = 30
     singularity:
         "docker://lbmc/bioawk:1.0"
     shell:
@@ -381,6 +404,9 @@ rule quast:
         prefix = "{sample}",
     #conda:
     #    "envs/quast.yaml"
+    resources:
+        mem_mb = 5000,
+        runtime = 30
     singularity:
         "docker://staphb/quast:5.0.2"
     #envmodules:
@@ -400,6 +426,9 @@ rule auriclass:
     params: 
         #outdir = "results/{prefix}/mlst/{sample}/",
         sample = "{sample}",
+    resources:
+        mem_mb = 5000,
+        runtime = 30
     singularity:
         "docker://quay.io/biocontainers/auriclass:0.5.4--pyhdfd78af_0"
     shell:
@@ -452,6 +481,9 @@ rule skani:
         skani_ani_db = config["skani_db"],
         #threads = 4
     threads: 4
+    resources:
+        mem_mb = 5000,
+        runtime = 30
     #conda:
     #    "envs/skani.yaml"
     singularity:
@@ -479,6 +511,9 @@ rule multiqc:
         quast_dir = "results/{prefix}/quast/",
         raw_fastqc_dir = "results/{prefix}/quality_raw/",
         aftertrim_fastqc_dir = "results/{prefix}/quality_aftertrim/",
+    resources:
+        mem_mb = 1000,
+        runtime = 20
     singularity:
         "docker://multiqc/multiqc:v1.25.1"
     shell:
@@ -514,6 +549,9 @@ rule funannotate_mask:
         sample = "{sample}"
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
+    resources:
+        mem_mb = 5000,
+        runtime=60
     shell:
         """
         funannotate clean -i {input.spades_l1000_assembly} -o {params.out_dir}{params.sample}_cleaned.fa
@@ -525,11 +563,13 @@ rule funannotate_mask:
 
 # in progress
 # this requires the RNA-seq data from Teresa, and assumes that the files are in a specific format
-# specifically, that read 1 contains '_R1_' in the file name, that all files are in fastq.gz format and in RF order for stranded RNA-seq, and that they can be ordered alphabetically
+# specifically, that read 1 contains 'R1' in the file name, that all files are in fastq.gz format and in RF order for stranded RNA-seq, and that they can be ordered alphabetically
+# This is also currently hard-coded to use 15G of memory
 rule funannotate_train:
     input:
         masked_assembly = "results/{prefix}/funannotate/{sample}/{sample}_masked.fa"
     output:
+        funannotate_training_dir = directory("results/{prefix}/funannotate/{sample}/training/"),
         funannotate_training_rna_bam = "results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam",
         funannotate_training_pasa_gff = "results/{prefix}/funannotate/{sample}/training/funannotate_train.pasa.gff3",
         funannotate_training_stringtie = "results/{prefix}/funannotate/{sample}/training/funannotate_train.stringtie.gtf",
@@ -539,12 +579,13 @@ rule funannotate_train:
         sample = "{sample}",
         rna_data_r1 = ' '.join(sorted([config["funqcd_lib"] + 'rna_seq_data/' + x for x in os.listdir(config["funqcd_lib"] + 'rna_seq_data/') if '_R1_' in x and 'fastq.gz' in x])),
         rna_data_r2 = ' '.join(sorted([config["funqcd_lib"] + 'rna_seq_data/' + x for x in os.listdir(config["funqcd_lib"] + 'rna_seq_data/') if '_R2_' in x and 'fastq.gz' in x])),
-        mem_g = str(int(config["mem_mb"]/1000)) + "G",
+        mem_g = "30G",
         test = vars(workflow.resources)
     # threads: workflow.cores
     threads: 8
     resources:
-        mem_mb = config["mem_mb"]
+        mem_mb = 32000,
+        runtime = 500
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
@@ -561,7 +602,7 @@ rule funannotate_predict:
     input:
         masked_assembly = "results/{prefix}/funannotate/{sample}/{sample}_masked.fa",
         funannotate_training_rna_bam = "results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam",
-        busco_db = config["funqcd_lib"] + "busco/saccharomycetales/dataset.cfg"
+        busco_db = config["funqcd_lib"] + "busco/lineages/saccharomycetes_odb10/dataset.cfg"
     output:
         funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
         funannotate_predict_out = directory("results/{prefix}/funannotate/{sample}/predict_results/")
@@ -569,6 +610,9 @@ rule funannotate_predict:
         out_dir = "results/{prefix}/funannotate/{sample}/",
         sample = "{sample}"
     threads: 8
+    resources:
+        mem_mb = 15000,
+        runtime = 500
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
@@ -577,7 +621,7 @@ rule funannotate_predict:
         """
         funannotate predict --input {input.masked_assembly} --out {params.out_dir} \
         --species {params.sample} \
-        --busco_seed_species candida_albicans --busco_db saccharomycetales --cpus {threads}
+        --busco_seed_species candida_albicans --busco_db saccharomycetes_odb10 --cpus {threads}
         """
 
 # in progress
@@ -591,6 +635,9 @@ rule funannotate_update:
         out_dir = "results/{prefix}/funannotate/{sample}/",
         sample = "{sample}"
     threads: 8
+    resources:
+        mem_mb = 15000,
+        runtime = 600
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
@@ -647,6 +694,9 @@ rule interproscan:
         sample = "{sample}",
         # cpus = config["ncores"]
     threads: 8
+    resources:
+        mem_mb = 15000,
+        runtime = 600
     shell:
         """
         bash /opt/interproscan/interproscan.sh --input {input.funannotate_predict_proteins} --output-dir {params.out_dir} \
@@ -679,10 +729,13 @@ rule eggnog:
         out_dir = "results/{prefix}/funannotate/{sample}/eggnog/",
         sample = "{sample}"
     threads: 8
+    resources:
+        mem_mb = 15000,
+        runtime = 600
     shell:
         """
         emapper.py -i {input.funannotate_predict_proteins} --itype proteins --data_dir {params.eggnog_data_dir} -m diamond \
-        --output {params.sample} --output_dir {params.out_dir} --cpu {threads}
+        --output {params.sample} --output_dir {params.out_dir} --cpu {threads} --override
         """
 
 # in progress
@@ -699,6 +752,9 @@ rule funannotate_annotate:
         sample = "{sample}",
         # cpus = config["ncores"]
     threads: 8
+    resources:
+        mem_mb = 3000,
+        runtime = 80
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
@@ -716,6 +772,9 @@ rule busco_final:
         prefix = "{prefix}",
         busco_db = config["funqcd_lib"] + "busco/"
     threads: 8
+    resources:
+        mem_mb = 15000,
+        runtime = 45
     singularity:
         "docker://ezlabgva/busco:v5.7.0_cv1"
     shell:

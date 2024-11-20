@@ -7,4 +7,14 @@ nolock: True
 # make sure at least 8 cores are provided 
 cores: 16
 # make sure this is equal to the memory provided in config/config.yaml
-resources: mem_mb=15000
+#resources: mem_mb=32000
+jobs: 10
+
+# cluster settings
+slurm: True
+default-resources:
+  - slurm_account=esnitkin0
+  - slurm_partition=standard
+  - runtime=120
+  - mem_mb=15000
+#  - disk_mb=1000000
