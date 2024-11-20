@@ -23,26 +23,25 @@ Steps from QCD not currently used:
 * The assembled contigs from [SPAdes](https://github.com/ablab/spades) are passed through [Prokka](https://github.com/tseemann/prokka) for annotation, [QUAST](https://quast.sourceforge.net/) for assembly statistics, [MLST](https://github.com/tseemann/mlst) for determining sequence type based on sequences of housekeeping genes, [AMRFinderPlus](https://github.com/ncbi/amr) to identify antimicrobial resistance genes, [skani](https://github.com/bluenote-1577/skani) to identify closest reference genome, and [BUSCO](https://busco.ezlab.org/) for assembly completeness statistics.
 * [Multiqc](https://github.com/MultiQC/MultiQC) aggregates the final outputs from [Fastqc](https://github.com/s-andrews/FastQC), [Kraken2](https://github.com/DerrickWood/kraken2) , [Prokka](https://github.com/tseemann/prokka) and [QUAST](https://quast.sourceforge.net/) to produce a HTML report
 
-The workflow generates all the output in the output prefix folder set in the config file (instructions on setup found [below](#config)). Each workflow steps gets its own individual folder as shown:
+The workflow generates all the output in the output prefix folder set in the config file (instructions on setup found [below](#config)). Each workflow step gets its own individual folder as shown:
 
 ```
-results/2024-05-21_QCD_Project_MDHHS/
-|—— sample_name
-|   ├── amrfinder
-|   ├── downsample
-|   ├── kraken
-|   ├── mlst
-|   ├── prokka
-|   ├── quality_aftertrim
-|   ├── quality_raw
-|   ├── quast
-|   ├── raw_coverage
-|   ├── spades
-|   ├── trimmomatic
-|   └── funannotate
-|		├──interproscan
-|		└──eggnog
-└── another_sample_name
+results
+|—— run_name
+   ├── auriclass
+   ├── busco
+   ├── downsample
+   ├── multiqc
+   ├── quality_aftertrim
+   ├── quality_raw
+   ├── quast
+   ├── raw_coverage
+   ├── spades
+   ├── trimmomatic
+   └── funannotate
+		├──interproscan
+		└──eggnog
+
 ```
 
 
@@ -111,11 +110,11 @@ Currently, funQCD expects your sequencing reads to be named in a specific format
 If your reads are named differently, then the script will fail to recognize them. For example, `TO315_R1.fastq.gz` would work, but `TO315_R1_001.fastq.gz` would not. funQCD is currently being updated to fix this issue. 
 
 ### 2) config/samples.csv
-This file contains the names of your raw read files. These should exactly match the names used in the directory specified by `short_reads`. `sample.csv` should be a comma-seperated file consisting of two columns: `sample_id` and `illumina_r1`.
+This file contains the names of your raw read files. It should be a comma-seperated file consisting of two columns: `sample_id` and `illumina_r1`. These name in these columns should exactly match the names used in the directory specified by `short_reads`.
 
-* `sample_id` is the prefix that should be extracted from your FASTQ reads. For example, in  your raw FASTQ files directory, if you have a file called `Rush_KPC_110_R1.fastq.gz`, your sample_id would be `Rush_KPC_110`.
+* `sample_id` is the prefix that should be extracted from your FASTQ reads. For example, if you have files called `Rush_KPC_110_R1.fastq.gz` and `Rush_KPC_110_R2.fastq.gz` in your raw FASTQ directory, your sample_id would be `Rush_KPC_110`.
 
-* `illumina_r1` is the full name of the corresponding raw FASTQ file containing the forward reads. In the same directory, if your file is called `Rush_KPC_110_R1.fastq.gz`, your sample_id would be `Rush_KPC_110_R1.fastq.gz`. **_Only include the forward reads here._**
+* `illumina_r1` is the full name of the corresponding raw FASTQ file containing the forward reads. Using the same example as above, your sample_id would be `Rush_KPC_110_R1.fastq.gz`. **_Only include the forward reads here._**
 
 You can create sample.csv file using the following for loop. Replace *path_to_your_raw_reads* below with the actual path to your raw sequencing reads.
 
@@ -132,12 +131,7 @@ done >> config/sample.tsv
 ```
 
 ### 3) profile/config.yaml
-This file contains the options for running snakemake. You can change the resources funQCD will attempt to use here (such as cores and memory). If you changed the location of the funqcd_lib above, you'll also need to change the directories bound via singularity in this file as well.
-
-
-### 4) config/cluster.json
-
-This file contains parameters for snakemake's cluster execution mode. Reduce the walltime (to ~6 hours) in `config/cluster.json` to ensure the jobs are being submitted in a timely manner. 
+This file contains the options for running snakemake. The most important section to change is `slurm_account`, which needs to match an account that can submit jobs to the Great Lakes HPC cluster. If you changed the location of the funqcd_lib above, you'll need to change the directories bound via singularity in this file as well. You can set also limits on the resources funQCD will attempt to use here. For example, adding the line `resources: mem_mb=40000` will limit all jobs to ~40G of memory. 
 
 ## Quick start
 
@@ -147,19 +141,31 @@ This file contains parameters for snakemake's cluster execution mode. Reduce the
 
 ```
 
-snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/ -p
+snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/ -n
 
 ```
 
-> You can attempt to run funQCD locally as an additional test. This is not recommended for most cases, as the memory, time, and CPU requirements can be high for some steps.
+> The snakemake options present in profile/config.yaml should be visible in the dry run (such as memory and runtime for each rule). By default, --slurm is enabled in these options, and snakemake will submit jobs to the cluster using the account in your profile. To start the run, use a job script with minimal CPUs and memory, but a long runtime.  
 
 ```
+#!/bin/bash
 
+#SBATCH --mail-user=[your email]
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --export=ALL
+#SBATCH --partition=standard
+#SBATCH --account=[your account]
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=500m
+#SBATCH --time=20:00:00
+
+module load Bioinformatics snakemake singularity
 snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/
 
 ```
 
-> Run funQCD on Great Lakes HPC using a job script (15g memory, 16 cpus per task, 20 hours):
+> If you want to run the snakemake pipeline without cluster execution mode, change the `slurm: True` line to `slurm: False` in your profile and run the same command.
 
 ```
 module load Bioinformatics snakemake singularity
@@ -167,44 +173,6 @@ snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./pr
  
 ```
 
-> funQCD can also be run in cluster execution mode using the following command (testing in progress):
-
-```
-
-snakemake -s fQCD.smk -p --use-conda --use-singularity --use-envmodules -j 999 --cluster "sbatch -A {cluster.account} -p {cluster.partition} -N {cluster.nodes}  -t {cluster.walltime} -c {cluster.procs} --mem-per-cpu {cluster.pmem} --output=slurm_out/slurm-%j.out" --conda-frontend conda --cluster-config config/cluster.json --configfile config/config.yaml --latency-wait 1000 --nolock
-
-```
-
-> Submit funQCD as a batch job (_coming soon!_)
-
-![Alt text](./QCD_dag.svg)
-<!--
-### Gather Summary files and generate a report. 
-
->Start an interactive session in your current directory i.e. `QCD`.
-
-```
-
-srun --account=esnitkin1 --nodes=1 --ntasks-per-node=1 --mem-per-cpu=5GB --cpus-per-task=1 --time=12:00:00 --pty /bin/bash
-
-```
-
-> Preview the steps in QCD report by performing a dryrun of the pipeline. 
-
-```
-
-snakemake -s QCD_report.smk --dryrun -p
-
-```
-> Run QCD report on Great lakes HPC
-
-```
-
-snakemake -s QCD_report.smk -p --use-singularity --cores 2
-
-```
-![Alt text](./QCD_report_dag.svg)
--->
 ## Dependencies
 
 ### Near Essential
