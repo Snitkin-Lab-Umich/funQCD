@@ -620,8 +620,9 @@ rule funannotate_predict:
         # consider changing output names and re-adding
         """
         funannotate predict --input {input.masked_assembly} --out {params.out_dir} \
-        --species {params.sample} \
-        --busco_seed_species candida_albicans --busco_db saccharomycetes_odb10 --cpus {threads}
+        --species {params.sample} --force \
+        --busco_seed_species candida_albicans --busco_db saccharomycetes_odb10 --cpus {threads} \
+        --GENEMARK_PATH /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_11_11_funQCD_database/lib/genemark/gmes_linux_64_4/
         """
 
 # in progress
