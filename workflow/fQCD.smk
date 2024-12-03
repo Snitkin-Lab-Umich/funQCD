@@ -148,7 +148,8 @@ rule all:
         #QC_plot = expand("results/{prefix}/{prefix}_Report/fig/{prefix}_Coverage_distribution.png", prefix=PREFIX)
         #funannotate = expand("results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
         #funannotate_setup = "lib/busco/saccharomycetales/dataset.cfg",
-        funannotate_mask = expand("results/{prefix}/funannotate/{sample}/{sample}_masked.fa", sample=SAMPLE, prefix=PREFIX),
+        funannotate_sort = expand("results/{prefix}/funannotate/{sample}/{sample}_sorted.fa", sample=SAMPLE, prefix=PREFIX),
+        repeatmasker = expand("results/{prefix}/repeatmasker/{sample}/{sample}_masked.fa", sample = SAMPLE, prefix = PREFIX),
         funannotate_train = expand("results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam", sample=SAMPLE, prefix=PREFIX),
         funannotate_predict = expand("results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
         funannotate_update = expand("results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),        
@@ -450,27 +451,27 @@ rule auriclass:
 #    shell:
 #        "amrfinder --plus --output {output.amrfinder} --debug --log {params.outdir}/{params.prefix}.log --nucleotide_output {params.outdir}/{params.prefix}_reported_nucl.fna -n {input.spades_l1000_assembly} -O {params.organism}"
 
-rule busco:
-    input:
-        spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
-    output:
-        busco_out = f"results/{{prefix}}/{{sample}}/busco/busco.txt",
-    params: 
-        outdir = "results/{prefix}/busco/{sample}/",
-        prefix = "{sample}",
-        # threads = config["ncores"],
-    #conda:
-    #    "envs/busco.yaml"
-    singularity:
-        #"docker://staphb/busco:5.7.1-prok-bacteria_odb10_2024-01-08"
-        "docker://ezlabgva/busco:v5.7.1_cv1"
-    threads: 8
-    # threads: workflow.cores
-    #envmodules:
-    #    "Bioinformatics",
-    #    "busco"
-    shell:
-        "busco -f -i {input.spades_l1000_assembly} -m genome -l bacteria_odb10 -o {params.outdir}"
+# rule busco:
+#     input:
+#         spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
+#     output:
+#         busco_out = f"results/{{prefix}}/{{sample}}/busco/busco.txt",
+#     params: 
+#         outdir = "results/{prefix}/busco/{sample}/",
+#         prefix = "{sample}",
+#         # threads = config["ncores"],
+#     #conda:
+#     #    "envs/busco.yaml"
+#     singularity:
+#         #"docker://staphb/busco:5.7.1-prok-bacteria_odb10_2024-01-08"
+#         "docker://ezlabgva/busco:v5.7.1_cv1"
+#     threads: 8
+#     # threads: workflow.cores
+#     #envmodules:
+#     #    "Bioinformatics",
+#     #    "busco"
+#     shell:
+#         "busco -f -i {input.spades_l1000_assembly} -m genome -l bacteria_odb10 -o {params.outdir}"
 
 rule skani:
     input:
@@ -501,7 +502,8 @@ rule multiqc:
         aftertrim_fastqc_report_fwd = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
         aftertrim_fastqc_report_rev = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
         raw_fastqc_report_fwd = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX)
+        raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        busco_out = "results/{prefix}/busco/busco_output/batch_summary.txt",
     output:
         multiqc_report = "results/{prefix}/multiqc/{prefix}_QC_report.html",
     params:
@@ -511,6 +513,7 @@ rule multiqc:
         quast_dir = "results/{prefix}/quast/",
         raw_fastqc_dir = "results/{prefix}/quality_raw/",
         aftertrim_fastqc_dir = "results/{prefix}/quality_aftertrim/",
+        busco_dir = "results/{prefix}/busco/busco_output/",
     resources:
         mem_mb = 1000,
         runtime = 20
@@ -519,7 +522,7 @@ rule multiqc:
     shell:
         """
         multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report \
-        {params.quast_dir} {params.raw_fastqc_dir} {params.aftertrim_fastqc_dir}
+        {params.quast_dir} {params.raw_fastqc_dir} {params.aftertrim_fastqc_dir} {params.busco_dir}
         """
 
 # This adds another BUSCO database for funannotate to use
@@ -536,14 +539,12 @@ rule multiqc:
 #         funannotate setup --busco_db saccharomycetales --install busco --database {params.out_dir} 
 #         """
 
-# This needs to be split into individual steps for clean/sort/mask, predict, and annotate
-# I've split out the predict and annotate steps
-# The new order is setup, mask, train, predict, update, interproscan, eggnong, annotate
-rule funannotate_mask:
+# The order is setup, mask, train, predict, update, interproscan, eggnong, annotate
+rule funannotate_sort:
     input:
         spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
     output:
-        masked_assembly = "results/{prefix}/funannotate/{sample}/{sample}_masked.fa"
+        sorted_assembly = "results/{prefix}/funannotate/{sample}/{sample}_sorted.fa"
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
         sample = "{sample}"
@@ -556,18 +557,43 @@ rule funannotate_mask:
         """
         funannotate clean -i {input.spades_l1000_assembly} -o {params.out_dir}{params.sample}_cleaned.fa
         funannotate sort -i {params.out_dir}{params.sample}_cleaned.fa -o {params.out_dir}{params.sample}_sorted.fa --minlen 0
-        funannotate mask -i {params.out_dir}{params.sample}_sorted.fa -o {params.out_dir}{params.sample}_masked.fa
         """
+# removed: funannotate mask -i {params.out_dir}{params.sample}_sorted.fa -o {params.out_dir}{params.sample}_masked.fa
 # removed: funannotate annotate -i {output.funannotate_predict_out} -o {params.out_dir} --cpus {threads}
 # removed: funannotate predict -i {params.out_dir}{params.sample}_masked.fa -o {params.out_dir} --species '{params.sample}' --augustus_species candida_albicans --cpus {threads}
 
-# in progress
+# This will generate a directory named RM_* with a large number of temporary files. 
+# There does not appear to be a way to change this output from RepeatMasker itself, so these files are deleted in a later rule
+# (Deleting RM_* directories in this rule breaks RepeatMasker runs in progress)
+rule repeatmasker:
+    input:
+        sorted_assembly = "results/{prefix}/funannotate/{sample}/{sample}_sorted.fa"
+    output:
+        masked_assembly = "results/{prefix}/repeatmasker/{sample}/{sample}_masked.fa"
+    params:
+        out_dir = "results/{prefix}/repeatmasker/{sample}/",
+        repeat_lib = config["funqcd_lib"] + "repeat_libraries/fungi_b8441/b8441_fungi_repeatlib.fa",
+        prefix = "{prefix}",
+        sample = "{sample}",
+    threads: 8
+    resources:
+        mem_mb = 5000,
+        runtime = 120,
+    singularity:
+        "docker://dfam/tetools:1.89.2"
+    shell:
+        """
+        RepeatMasker -xsmall -dir {params.out_dir} -lib {params.repeat_lib} \
+        results/{params.prefix}/funannotate/{params.sample}/{params.sample}_sorted.fa -pa {threads}
+        mv {params.out_dir}/{params.sample}_sorted.fa.masked {params.out_dir}/{params.sample}_masked.fa
+        """
+
 # this requires the RNA-seq data from Teresa, and assumes that the files are in a specific format
 # specifically, that read 1 contains 'R1' in the file name, that all files are in fastq.gz format and in RF order for stranded RNA-seq, and that they can be ordered alphabetically
-# This is also currently hard-coded to use 15G of memory
+# This is also currently hard-coded to use 30G of memory
 rule funannotate_train:
     input:
-        masked_assembly = "results/{prefix}/funannotate/{sample}/{sample}_masked.fa"
+        masked_assembly = "results/{prefix}/repeatmasker/{sample}/{sample}_masked.fa"
     output:
         funannotate_training_dir = directory("results/{prefix}/funannotate/{sample}/training/"),
         funannotate_training_rna_bam = "results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam",
@@ -595,12 +621,11 @@ rule funannotate_train:
         --jaccard_clip --species "Candida auris" --isolate {params.sample} --cpus {threads} --memory {params.mem_g}
         """
 
-# in progress
 # This should automatically detect the four training files generated previously, even without explicit input
 # All steps should run with 'pasa' or 'rna-bam' under Training-Methods. Nothing should run with 'busco'.
 rule funannotate_predict:
     input:
-        masked_assembly = "results/{prefix}/funannotate/{sample}/{sample}_masked.fa",
+        masked_assembly = "results/{prefix}/repeatmasker/{sample}/{sample}_masked.fa",
         funannotate_training_rna_bam = "results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam",
         busco_db = config["funqcd_lib"] + "busco/lineages/saccharomycetes_odb10/dataset.cfg"
     output:
@@ -608,7 +633,8 @@ rule funannotate_predict:
         funannotate_predict_out = directory("results/{prefix}/funannotate/{sample}/predict_results/")
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
-        sample = "{sample}"
+        sample = "{sample}",
+        genemark_path = config["funqcd_lib"] + "genemark/gmes_linux_64_4/",
     threads: 8
     resources:
         mem_mb = 15000,
@@ -622,10 +648,9 @@ rule funannotate_predict:
         funannotate predict --input {input.masked_assembly} --out {params.out_dir} \
         --species {params.sample} --force \
         --busco_seed_species candida_albicans --busco_db saccharomycetes_odb10 --cpus {threads} \
-        --GENEMARK_PATH /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_11_11_funQCD_database/lib/genemark/gmes_linux_64_4/
+        --GENEMARK_PATH {params.genemark_path}
         """
 
-# in progress
 rule funannotate_update:
     input:
         funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
@@ -704,7 +729,6 @@ rule interproscan:
         --disable-precalc --cpu {threads}
         """
 
-# in progress
 # this downloads the databases needed for eggnog to run
 rule eggnog_data_dl:
     output:
@@ -716,7 +740,6 @@ rule eggnog_data_dl:
         download_eggnog_data.py -y --data_dir lib/eggnog_data/
         """
 
-# in progress
 rule eggnog:
     input:
         eggnog_data = config["funqcd_lib"] + "eggnog_data/eggnog.db",
@@ -739,7 +762,6 @@ rule eggnog:
         --output {params.sample} --output_dir {params.out_dir} --cpu {threads} --override
         """
 
-# in progress
 rule funannotate_annotate:
     input:
         funannotate_predict_out = "results/{prefix}/funannotate/{sample}/update_results/",
@@ -764,6 +786,7 @@ rule funannotate_annotate:
         --iprscan {input.interproscan_out} --eggnog {input.eggnog_out} --busco_db saccharomycetes_odb10
         """
 
+# The line 'rm -rf RM_*' removes the directories that RepeatMasker generates in the working directory
 rule busco_final:
     input:
         funannotate_annotate_proteins = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", prefix = PREFIX, sample = SAMPLE)
@@ -783,4 +806,5 @@ rule busco_final:
         mkdir -p results/{params.prefix}/busco/input/
         cp results/{params.prefix}/funannotate/*/annotate_results/*.proteins.fa results/{params.prefix}/busco/input/
         busco -f --in results/{params.prefix}/busco/input/ --mode protein --lineage_dataset saccharomycetes_odb10 --out_path results/{params.prefix}/busco/ -c {threads} --out busco_output --offline --download_path {params.busco_db}
+        rm -rf RM_*
         """
