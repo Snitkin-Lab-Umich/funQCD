@@ -13,6 +13,8 @@ This pipeline performs the following steps:
 * [SPAdes](https://github.com/ablab/spades) is used to assemble trimmed reads into contigs.
 * [Kraken2](https://github.com/DerrickWood/kraken2) is used to provide detailed reports on the taxonomic composition of the trimmed raw reads.
 * [Funannotate](https://github.com/nextgenusfs/funannotate) is used for structural and functional annotation of the assembly from SPAdes.
+* [RepeatMasker](https://github.com/Dfam-consortium/RepeatMasker) is used to soft-mask the genome.
+* [GeneMark](https://exon.gatech.edu/) is used for to for structural annotation of the genome, as part of Funannotate.
 * [InterProScan](https://github.com/ebi-pf-team/interproscan) is used for functional annotation of the genome, with its results used by Funannotate.
 * [EggNOG-Mapper](https://github.com/eggnogdb/eggnog-mapper) is used for functional annotation of the genome, with its results used by Funannotate.
 * [AuriClass](https://github.com/RIVM-bioinformatics/auriclass) is used to determine the clade of Candida auris.
@@ -28,7 +30,7 @@ The workflow generates all the output in the output prefix folder set in the con
 
 ```
 results
-└─—— run_name
+└─ run_name
    ├── auriclass
    ├── busco
    ├── downsample
@@ -39,6 +41,7 @@ results
    ├── raw_coverage
    ├── spades
    ├── trimmomatic
+   ├── repeatmasker   
    └── funannotate
 		├──interproscan
 		└──eggnog
@@ -80,23 +83,14 @@ cd funQCD
 module load Bioinformatics snakemake singularity
 
 ```
-<!--
-```
-
-module load snakemake singularity
-
-```
--->
-
-This workflow makes use of singularity containers available through [State Public Health Bioinformatics group](https://github.com/StaPH-B/docker-builds). If you are working on Great Lakes (umich's HPC cluster), you can load snakemake and singularity modules as shown above. However, if you are running it on your local or other computing platform, ensure you have snakemake and singularity installed.
 
 
 ## Setting up configuration files
 
-This pipeline requires several files that specify where your raw reads are located, where external databases can be found, how much memory is available, and several other parameters. Once funQCD is installed, you'll need to update the following files as well. If you are just testing the pipeline, these files already contain example paths you can use.
+This pipeline requires several files that specify where your raw reads are located, where external databases can be found, how much memory is available, and several other parameters. Once funQCD is installed, you'll need to update the following files as well. Usually, only a few edits are needed. If you are just testing the pipeline, these files already contain example paths you can use.
 
 ### 1) config/config.yaml
-This file contains information about where the sequencing reads and databases can be found. Detailed instructions for each section are provided in the file itself, with a short description of the most important ones here.
+This file contains information about where the sequencing reads and databases can be found. Detailed instructions for each section are provided in the file itself, with a short description of the most important ones here. Usually, the only edit needed will be the "short_reads" section.
 
 * short_reads: This is the most important section to edit. It must contain the full path to a directory containing your raw sequencing reads, as .fastq.gz files with standardized names (see below).
 * samples: This is the path to a .csv file containing the names of the raw reads you want to process (see next section).
@@ -117,7 +111,7 @@ This file contains the names of your raw read files. It should be a comma-sepera
 
 * `illumina_r1` is the full name of the corresponding raw FASTQ file containing the forward reads. Using the same example as above, your sample_id would be `Rush_KPC_110_R1.fastq.gz`. **_Only include the forward reads here._**
 
-You can create sample.csv file using the following for loop. Replace *path_to_your_raw_reads* below with the actual path to your raw sequencing reads.
+You can create sample.csv file using the following script. Replace *path_to_your_raw_reads* below with the actual path to your raw sequencing reads.
 
 ```
 
@@ -132,7 +126,10 @@ done >> config/sample.tsv
 ```
 
 ### 3) profile/config.yaml
-This file contains the options for running snakemake. The most important section to change is `slurm_account`, which needs to match an account that can submit jobs to the Great Lakes HPC cluster. If you changed the location of the funqcd_lib above, you'll need to change the directories bound via singularity in this file as well. You can also set limits on the resources funQCD will attempt to use here. For example, adding the line `resources: mem_mb=40000` will limit all jobs to ~40G of memory. 
+This file contains the options for running snakemake. The most important section to change is `slurm_account`, which needs to match an account that can submit jobs to the Great Lakes HPC cluster. If you changed the location of the funqcd_lib above, you'll need to change the directories bound via singularity in this file as well. You can also set limits on the resources funQCD will attempt to use here. For example, adding the line `resources: mem_mb=40000` will limit all jobs to ~40G of memory.
+
+### 4) .gm_key
+This file is a license key needed for GeneMark to run. It can be obtained [here](https://genemark.bme.gatech.edu/license_download.cgi). This license should be present in the main directory (/funQCD/).
 
 ## Running funQCD
 
@@ -171,25 +168,3 @@ module load Bioinformatics snakemake singularity
 snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/
  
 ```
-
-## Dependencies
-
-### Near Essential
-* [Snakemake>=7.32.4](https://snakemake.readthedocs.io/en/stable/#)
-* [Conda](https://docs.conda.io/en/latest/)
-
-<!--All the necessary software stack required for the workflow will be installed using conda package manager.-->
-
-### Tool stack used in workflow
-
-* [fastq-scan](https://github.com/rpetit3/fastq-scan)
-* [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic)
-* [SPades](https://github.com/ablab/spades)
-* [AMRFinderPlus](https://github.com/ncbi/amr)
-* [bioawk](https://github.com/lh3/bioawk)
-* [Prokka](https://github.com/tseemann/prokka)
-* [mlst](https://github.com/tseemann/mlst)
-* [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
-* [MultiQC](https://multiqc.info/)
-* [Pandas](https://pandas.pydata.org/)
-* [Matplotlib](https://matplotlib.org/)
