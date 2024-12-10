@@ -1,0 +1,15 @@
+#!/bin/bash
+
+#SBATCH --mail-user=jjhale@umich.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --export=ALL
+#SBATCH --partition=standard
+#SBATCH --account=esnitkin0
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=5g
+#SBATCH --time=24:00:00
+
+module load Bioinformatics snakemake singularity
+snakemake -s workflow/funQCD.smk -p --configfile config/config.yaml --profile ./profile/
+

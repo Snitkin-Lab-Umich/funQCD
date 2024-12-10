@@ -233,6 +233,7 @@ rule trimmomatic_pe:
         window_size_quality=config["window_size_quality"],
         minlength=config["minlength"],
         headcrop_length=config["headcrop_length"],
+        lead_trail_qual=config["lead_trail_qual"],
         #threads = config["ncores"],
     log:
         "logs/{prefix}/trimmomatic/{sample}/{sample}.log"
@@ -251,7 +252,11 @@ rule trimmomatic_pe:
     #    "Bioinformatics",
     #    "trimmomatic"
     shell:
-        "trimmomatic PE {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} -threads {threads} ILLUMINACLIP:{params.adapter_filepath}:{params.seed}:{params.palindrome_clip}:{params.simple_clip}:{params.minadapterlength}:{params.keep_both_reads} SLIDINGWINDOW:{params.window_size}:{params.window_size_quality} MINLEN:{params.minlength} HEADCROP:{params.headcrop_length} &>{log}"
+        """
+        trimmomatic PE {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} -threads {threads} \
+        ILLUMINACLIP:{params.adapter_filepath}:{params.seed}:{params.palindrome_clip}:{params.simple_clip}:{params.minadapterlength}:{params.keep_both_reads} \
+        LEADING:3 TRAILING:3 SLIDINGWINDOW:{params.window_size}:{params.window_size_quality} MINLEN:{params.minlength} HEADCROP:{params.headcrop_length} &>{log}
+        """
 
 rule quality_aftertrim:
     input:
