@@ -89,7 +89,7 @@ The pipeline requires a list of sample names to process, in the form of a CSV wi
 
 ```
 
-python setup.py [path\_to\_reads]
+python setup.py [path_to_reads]
 
 ```
 The output file will be `config/samples.csv`. This will only work if all of your read names are unique, and end with `_R1.fastq.gz` or `_R1.fastq.gz`. For example, `TO315_R1.fastq.gz` would work, but `TO315_R1_001.fastq.gz` would not. It is recommended to check samples.csv after running the script to make sure it worked as expected.
@@ -100,7 +100,7 @@ This script will also attempt to copy a GeneMark license (.gm_key) from your hom
 
 This file contains information about where the sequencing reads and databases can be found. Replace the `short_reads` section with the same file path you used for the setup script in step 1.
 
-You can also use this file to change the databases and references that funQCD uses. Detailed instructions for each section are provided in the file itself, with a short description of the most important ones here.
+(Optional) You can also use this file to change the databases and references that funQCD uses. Detailed instructions for each section are provided in the file itself, with a short description of the most important ones here.
 
 * short_reads: This must contain the full path to a directory containing your raw sequencing reads, as .fastq.gz files with standardized names.
 * samples: This is the path to a .csv file containing the names of the raw reads you want to process (see next section).
@@ -112,9 +112,9 @@ You can also use this file to change the databases and references that funQCD us
 
 ### 3) profile/config.yaml
 
-This file contains the options for running snakemake. Usually, you should only need to replace the `slurm_account` section with your own account. 
+This file contains the options for running snakemake. Replace the `slurm_account` section with your own account. 
 
-If you changed the databases and references used above, you'll need to change the directories bound via singularity in this file as well. You can also set limits on the resources funQCD will attempt to use here. For example, adding the line `resources: mem_mb=40000` will limit all jobs to ~40G of memory.
+(Optional) If you changed the databases and references used above, you'll need to change the directories bound via singularity in this file as well. You can also set limits on the resources funQCD will attempt to use here. For example, adding the line `resources: mem_mb=40000` will limit all jobs to ~40G of memory.
 
 
 ## Running funQCD
@@ -127,7 +127,7 @@ snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./pr
 
 ```
 
-> The snakemake options present in profile/config.yaml should be visible in the dry run (such as memory and runtime for each rule). By default, --slurm is enabled in these options, and snakemake will submit jobs to the cluster using the account in your profile. If everything looks correct, start the run using a job script with minimal CPUs, minimal memory, and a long runtime. An example job script is provided in `run_fqcd.job`.
+> The snakemake options present in profile/config.yaml should be visible in the dry run (such as memory and runtime for each rule). By default, --slurm is enabled in these options, and snakemake will submit jobs to the cluster using the account in your profile. If everything looks correct, start the run using a job script with minimal CPUs, moderate memory, and a long runtime. An example job script is provided in `run_fqcd.job`.
 
 ```
 #!/bin/bash
@@ -139,7 +139,7 @@ snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./pr
 #SBATCH --account=[your_account]
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=500m
+#SBATCH --mem=5G
 #SBATCH --time=20:00:00
 
 module load Bioinformatics snakemake singularity
