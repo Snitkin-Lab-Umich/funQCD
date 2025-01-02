@@ -20,9 +20,9 @@ def make_samples_csv(path):
     if os.path.exists('config/samples.csv'):
         print('Overwriting config/samples.csv with new version')
     for f in flist:
-        if '.fastq.gz' in f:
-            sample_id = '_'.join(f.split('_')[:-1])
-            # this should always return the full text to the left of '_R1.fastq.gz' or '_R2.fastq.gz', even if it contains '_' characters
+        if '_R1.fastq.gz' in f or '_R2.fastq.gz' in f:
+            sample_id = '_R'.join(f.split('_R')[:-1])
+            # this should always return the full text to the left of '_R1.fastq.gz' or '_R2.fastq.gz', even if it contains '_R' somewhere other than the end
             sample_id_set.add(sample_id)
     with open('config/samples.csv','w') as fhout:
         _ = fhout.write('sample_id\n')

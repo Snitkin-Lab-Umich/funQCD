@@ -1,4 +1,7 @@
-# Author: Ali Pirani and Dhatri Badri
+# Author: Ali Pirani, Dhatri Badri, and Joseph Hale
+
+# most recent change: removed lambda and f strings
+
 configfile: "config/config.yaml"
 
 #include: "fQCD_report.smk"
@@ -130,7 +133,7 @@ rule all:
         coverage = expand("results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json", sample=SAMPLE, prefix=PREFIX),
         # fastqc_raw = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_001_fastqc.html", sample=SAMPLE, prefix=PREFIX),
         fastqc_raw = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample=SAMPLE, prefix=PREFIX),
-        trim = expand("results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz", sample=SAMPLE, prefix=PREFIX),
+        trimmomatic_pe = expand("results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz", sample=SAMPLE, prefix=PREFIX),
         fastqc_aftertrim = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html", sample=SAMPLE, prefix=PREFIX),
         downsample_read = expand("results/{prefix}/downsample/{sample}/{sample}_R1_trim_paired.fastq.gz", sample=SAMPLE, prefix=PREFIX),
         spades_assembly = expand("results/{prefix}/spades/{sample}/contigs.fasta", sample=SAMPLE, prefix=PREFIX),
@@ -159,16 +162,18 @@ rule all:
         eggnog_data_dl = config["funqcd_lib"] + "eggnog_data/eggnog.db",
         eggnog = expand("results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations", sample=SAMPLE, prefix=PREFIX),
         funannotate_annotate = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
-        busco_final = expand("results/{prefix}/busco/busco_output/batch_summary.txt", prefix = PREFIX)
+        busco_final = expand("results/{prefix}/busco/busco_output_prot/batch_summary.txt", prefix = PREFIX)
 
 rule coverage:
     input:
-        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
-        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz")),
+        r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
+        r2 = config["short_reads"] + "/" + "{sample}_R2.fastq.gz",
+        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
+        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz")),
         #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
         #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),
     output:
-        coverage = f"results/{{prefix}}/raw_coverage/{{sample}}/{{sample}}_coverage.json",
+        coverage = "results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json",
     params:
         size=config["genome_size"]
     #conda:
@@ -183,13 +188,15 @@ rule coverage:
 
 rule quality_raw:
     input:
-        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
-        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz")),
+        r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
+        r2 = config["short_reads"] + "/" + "{sample}_R2.fastq.gz",
+        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
+        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz")),
         #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
         #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),
     output:
-        raw_fastqc_report_fwd = f"results/{{prefix}}/quality_raw/{{sample}}/{{sample}}_Forward/{{sample}}_R1_fastqc.html",
-        raw_fastqc_report_rev = f"results/{{prefix}}/quality_raw/{{sample}}/{{sample}}_Reverse/{{sample}}_R2_fastqc.html",
+        raw_fastqc_report_fwd = "results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html",
+        raw_fastqc_report_rev = "results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html",
     log:
         "logs/{prefix}/quality_raw/{sample}/{sample}.log"
     params:
@@ -212,16 +219,18 @@ rule quality_raw:
 
 rule trimmomatic_pe:
     input:
-        r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
-        r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz"))
+        r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
+        r2 = config["short_reads"] + "/" + "{sample}_R2.fastq.gz",
+        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
+        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz"))
         #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
         #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),  
     output:
-        r1 = f"results/{{prefix}}/trimmomatic/{{sample}}/{{sample}}_R1_trim_paired.fastq.gz",
-        r2 = f"results/{{prefix}}/trimmomatic/{{sample}}/{{sample}}_R2_trim_paired.fastq.gz", 
+        r1 = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz",
+        r2 = "results/{prefix}/trimmomatic/{sample}/{sample}_R2_trim_paired.fastq.gz", 
         # reads where trimming entirely removed the mate
-        r1_unpaired = f"results/{{prefix}}/trimmomatic/{{sample}}/{{sample}}_R1_trim_unpaired.fastq.gz",
-        r2_unpaired = f"results/{{prefix}}/trimmomatic/{{sample}}/{{sample}}_R2_trim_unpaired.fastq.gz",
+        r1_unpaired = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_unpaired.fastq.gz",
+        r2_unpaired = "results/{prefix}/trimmomatic/{sample}/{sample}_R2_trim_unpaired.fastq.gz",
     params:
         adapter_filepath=config["adapter_file"],
         seed=config["seed_mismatches"],
@@ -260,11 +269,13 @@ rule trimmomatic_pe:
 
 rule quality_aftertrim:
     input:
-        r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
-        r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
+        r1 = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz",
+        r2 = "results/{prefix}/trimmomatic/{sample}/{sample}_R2_trim_paired.fastq.gz",
+        #r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
+        #r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
     output:
-        aftertrim_fastqc_report_fwd = f"results/{{prefix}}/quality_aftertrim/{{sample}}/{{sample}}_Forward/{{sample}}_R1_trim_paired_fastqc.html",
-        aftertrim_fastqc_report_rev = f"results/{{prefix}}/quality_aftertrim/{{sample}}/{{sample}}_Reverse/{{sample}}_R2_trim_paired_fastqc.html",
+        aftertrim_fastqc_report_fwd = "results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html",
+        aftertrim_fastqc_report_rev = "results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html",
     log:
         "logs/{prefix}/{sample}/quality_aftertrim/{sample}.log"
     params:
@@ -287,11 +298,13 @@ rule quality_aftertrim:
 
 rule downsample:
     input:
-        r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
-        r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
+        r1 = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz",
+        r2 = "results/{prefix}/trimmomatic/{sample}/{sample}_R2_trim_paired.fastq.gz",
+        #r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
+        #r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
     output:
-        outr1 = f"results/{{prefix}}/downsample/{{sample}}/{{sample}}_R1_trim_paired.fastq.gz",
-        outr2 = f"results/{{prefix}}/downsample/{{sample}}/{{sample}}_R2_trim_paired.fastq.gz",
+        outr1 = "results/{prefix}/downsample/{sample}/{sample}_R1_trim_paired.fastq.gz",
+        outr2 = "results/{prefix}/downsample/{sample}/{sample}_R2_trim_paired.fastq.gz",
     params:
         gsize = config["genome_size"],
     resources:
@@ -320,10 +333,12 @@ rule downsample:
 
 rule assembly:
     input:
-        r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/downsample/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
-        r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/downsample/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
+        r1 = "results/{prefix}/downsample/{sample}/{sample}_R1_trim_paired.fastq.gz",
+        r2 = "results/{prefix}/downsample/{sample}/{sample}_R2_trim_paired.fastq.gz",
+        #r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/downsample/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
+        #r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/downsample/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
     output:
-        spades_assembly = f"results/{{prefix}}/spades/{{sample}}/contigs.fasta",
+        spades_assembly = "results/{prefix}/spades/{sample}/contigs.fasta",
     params:
         out_dir = "results/{prefix}/spades/{sample}/",
         mem_g = 15
@@ -360,7 +375,7 @@ rule assembly:
 
 rule bioawk:
     input:
-        spades_assembly = lambda wildcards: f"results/{wildcards.prefix}/spades/{wildcards.sample}/contigs.fasta"
+        spades_assembly = "results/{prefix}/spades/{sample}/contigs.fasta",
     output:
         spades_l1000_assembly = "results/{prefix}/spades/{sample}/{sample}_contigs_l1000.fasta"
     params:
@@ -402,9 +417,9 @@ rule bioawk:
 
 rule quast:
     input:
-        spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
+        spades_l1000_assembly = "results/{prefix}/spades/{sample}/{sample}_contigs_l1000.fasta",
     output:
-        quast_report = f"results/{{prefix}}/quast/{{sample}}/report.tsv",
+        quast_report = "results/{prefix}/quast/{sample}/report.tsv",
     params: 
         outdir = "results/{prefix}/quast/{sample}/",
         prefix = "{sample}",
@@ -426,9 +441,9 @@ rule quast:
 
 rule auriclass:
     input:
-        spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
+        spades_l1000_assembly = "results/{prefix}/spades/{sample}/{sample}_contigs_l1000.fasta",
     output:
-        auriclass_report = f"results/{{prefix}}/auriclass/{{sample}}/{{sample}}_report.tsv",
+        auriclass_report = "results/{prefix}/auriclass/{sample}/{sample}_report.tsv",
     params: 
         #outdir = "results/{prefix}/mlst/{sample}/",
         sample = "{sample}",
@@ -478,24 +493,24 @@ rule auriclass:
 #     shell:
 #         "busco -f -i {input.spades_l1000_assembly} -m genome -l bacteria_odb10 -o {params.outdir}"
 
-rule skani:
-    input:
-        spades_contigs_file = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/contigs.fasta")
-    output:
-        skani_output = f"results/{{prefix}}/skani/{{sample}}/{{sample}}_skani_output.txt"
-    params:
-        skani_ani_db = config["skani_db"],
-        #threads = 4
-    threads: 4
-    resources:
-        mem_mb = 5000,
-        runtime = 30
-    #conda:
-    #    "envs/skani.yaml"
-    singularity:
-        "docker://staphb/skani:0.2.1"
-    shell:
-        "skani search {input.spades_contigs_file} -d {params.skani_ani_db} -o {output.skani_output} -t {threads}"
+# rule skani:
+#     input:
+#         spades_contigs_file = "results/{prefix}/spades/{sample}/contigs.fasta",
+#     output:
+#         skani_output = "results/{prefix}/skani/{sample}/{sample}_skani_output.txt"
+#     params:
+#         skani_ani_db = config["skani_db"],
+#         #threads = 4
+#     threads: 4
+#     resources:
+#         mem_mb = 5000,
+#         runtime = 30
+#     #conda:
+#     #    "envs/skani.yaml"
+#     singularity:
+#         "docker://staphb/skani:0.2.1"
+#     shell:
+#         "skani search {input.spades_contigs_file} -d {params.skani_ani_db} -o {output.skani_output} -t {threads}"
         
 rule multiqc:
     input:
@@ -508,17 +523,20 @@ rule multiqc:
         aftertrim_fastqc_report_rev = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
         raw_fastqc_report_fwd = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample = SAMPLE, prefix = PREFIX),
         raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        busco_out = "results/{prefix}/busco/busco_output/batch_summary.txt",
+        busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
+        busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
+        #busco_out = "results/{prefix}/busco/busco_output/batch_summary.txt",
     output:
         multiqc_report = "results/{prefix}/multiqc/{prefix}_QC_report.html",
     params:
-        resultsoutdir = "results/{prefix}",
+        #resultsoutdir = "results/{prefix}",
         outdir = "results/{prefix}/multiqc",
         prefix = "{prefix}",
         quast_dir = "results/{prefix}/quast/",
         raw_fastqc_dir = "results/{prefix}/quality_raw/",
         aftertrim_fastqc_dir = "results/{prefix}/quality_aftertrim/",
-        busco_dir = "results/{prefix}/busco/busco_output/",
+        busco_dir_p = "results/{prefix}/busco/busco_output_prot/",
+        busco_dir_n = "results/{prefix}/busco/busco_output_nucl/",
     resources:
         mem_mb = 1000,
         runtime = 20
@@ -527,7 +545,7 @@ rule multiqc:
     shell:
         """
         multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report \
-        {params.quast_dir} {params.raw_fastqc_dir} {params.aftertrim_fastqc_dir} {params.busco_dir}
+        {params.quast_dir} {params.raw_fastqc_dir} {params.aftertrim_fastqc_dir} {params.busco_dir_p} {params.busco_dir_n}
         """
 
 # This adds another BUSCO database for funannotate to use
@@ -547,7 +565,7 @@ rule multiqc:
 # The order is setup, mask, train, predict, update, interproscan, eggnong, annotate
 rule funannotate_sort:
     input:
-        spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
+        spades_l1000_assembly = "results/{prefix}/spades/{sample}/{sample}_contigs_l1000.fasta",
     output:
         sorted_assembly = "results/{prefix}/funannotate/{sample}/{sample}_sorted.fa"
     params:
@@ -616,7 +634,7 @@ rule funannotate_train:
     threads: 8
     resources:
         mem_mb = 32000,
-        runtime = 500
+        runtime = 700
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
@@ -774,7 +792,8 @@ rule funannotate_annotate:
         eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations",
         busco_db = config["funqcd_lib"] + "busco/lineages/saccharomycetes_odb10/dataset.cfg"
     output:
-        funannotate_annotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa"
+        funannotate_annotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa",
+        funannotate_annotate_assembly = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.scaffolds.fa",
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
         sample = "{sample}",
@@ -794,9 +813,11 @@ rule funannotate_annotate:
 # The line 'rm -rf RM_*' removes the directories that RepeatMasker generates in the working directory
 rule busco_final:
     input:
-        funannotate_annotate_proteins = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", prefix = PREFIX, sample = SAMPLE)
+        funannotate_annotate_proteins = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", prefix = PREFIX, sample = SAMPLE),
+        funannotate_annotate_nucleotides = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.scaffolds.fa", prefix = PREFIX, sample = SAMPLE),       
     output:
-        busco_out = "results/{prefix}/busco/busco_output/batch_summary.txt"
+        busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
+        busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
     params:
         prefix = "{prefix}",
         busco_db = config["funqcd_lib"] + "busco/"
@@ -808,8 +829,11 @@ rule busco_final:
         "docker://ezlabgva/busco:v5.7.0_cv1"
     shell:
         """
-        mkdir -p results/{params.prefix}/busco/input/
-        cp results/{params.prefix}/funannotate/*/annotate_results/*.proteins.fa results/{params.prefix}/busco/input/
-        busco -f --in results/{params.prefix}/busco/input/ --mode protein --lineage_dataset saccharomycetes_odb10 --out_path results/{params.prefix}/busco/ -c {threads} --out busco_output --offline --download_path {params.busco_db}
+        mkdir -p results/{params.prefix}/busco/input/prot/
+        mkdir -p results/{params.prefix}/busco/input/nucl/
+        cp results/{params.prefix}/funannotate/*/annotate_results/*.proteins.fa results/{params.prefix}/busco/input/prot
+        cp results/{params.prefix}/funannotate/*/annotate_results/*.scaffolds.fa results/{params.prefix}/busco/input/nucl
+        busco -f --in results/{params.prefix}/busco/input/prot --mode protein --lineage_dataset saccharomycetes_odb10 --out_path results/{params.prefix}/busco/ -c {threads} --out busco_output_prot --offline --download_path {params.busco_db}
+        busco -f --in results/{params.prefix}/busco/input/nucl --mode genome --lineage_dataset saccharomycetes_odb10 --out_path results/{params.prefix}/busco/ -c {threads} --out busco_output_nucl --offline --download_path {params.busco_db}
         rm -rf RM_*
         """
