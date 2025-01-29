@@ -1,7 +1,0 @@
-name: auriclass
-channels:
-  - conda-forge
-  - bioconda
-  - nodefaults
-dependencies:
-  - auriclass=0.5.4

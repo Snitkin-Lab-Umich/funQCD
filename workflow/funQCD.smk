@@ -1,7 +1,5 @@
 # Author: Ali Pirani, Dhatri Badri, and Joseph Hale
 
-# most recent change: removed lambda and f strings
-
 configfile: "config/config.yaml"
 
 #include: "fQCD_report.smk"
@@ -16,31 +14,26 @@ PREFIX = config["prefix"]
 
 SHORTREADS = list(samples_df['sample_id'])
 
+# make all directories
+# if not os.path.exists(f'results/{PREFIX}/{PREFIX}_Report'):
+#     os.system(f'mkdir -p results/{PREFIX}/{PREFIX}_Report')
+# for d in ['scripts','data','multiqc','fig']:
+#     if not os.path.exists(f'results/{PREFIX}/{PREFIX}_Report/{d}'):
+#         os.system(f'mkdir results/{PREFIX}/{PREFIX}_Report/{d}')
+
 if not os.path.exists("results/"):
     os.system("mkdir %s" % "results/")
 
 if not os.path.exists("results/" + PREFIX):
     os.system("mkdir %s" % "results/" + PREFIX)
 
-# This is only needed for a local installation of the funannotate databases
-# if not os.path.exists("lib/"):
-#     os.system("mkdir %s" % "lib/")
-#
-# This directory can be empty, but it cannot be missing (otherwise the singularity bind will fail)
-# For IPS, this needs to end up in a specific directory as well ('/opt/interproscan/data/')
-# if not os.path.exists("lib/interproscan_data/"):
-#     os.system("mkdir %s" % "lib/interproscan_data/")
 
-# if not os.path.exists("lib/interproscan_data/data/"):
-#     os.system("mkdir %s" % "lib/interproscan_data/data/")
 
-# A similar directory is needed for BUSCO
-# This needs to end up in '/opt/databases/saccharomycetales' for funannotate to see it
-# if not os.path.exists("lib/busco/"):
-#     os.system("mkdir %s" % "lib/busco/")
 
-# if not os.path.exists("lib/busco/saccharomycetales/"):
-#     os.system("mkdir %s" % "lib/busco/saccharomycetales/")
+
+
+
+
 
 
 def downsample_reads(file, file2, out1, out2, genome_size):
@@ -128,6 +121,17 @@ def downsample_reads(file, file2, out1, out2, genome_size):
         os.system("cp %s %s" % (file, out1))
         os.system("cp %s %s" % (file2, out2))
 
+
+
+
+
+
+
+
+
+
+
+
 rule all:
     input:
         coverage = expand("results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json", sample=SAMPLE, prefix=PREFIX),
@@ -149,35 +153,27 @@ rule all:
         ##mlst_final_report = expand("results/{prefix}/{prefix}_Report/data/{prefix}_MLST_results.csv", prefix=PREFIX),
         #QC_summary = expand("results/{prefix}/{prefix}_Report/data/{prefix}_QC_summary.csv", prefix=PREFIX),
         #QC_plot = expand("results/{prefix}/{prefix}_Report/fig/{prefix}_Coverage_distribution.png", prefix=PREFIX)
-        #funannotate = expand("results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
-        #funannotate_setup = "lib/busco/saccharomycetales/dataset.cfg",
         funannotate_sort = expand("results/{prefix}/funannotate/{sample}/{sample}_sorted.fa", sample=SAMPLE, prefix=PREFIX),
         repeatmasker = expand("results/{prefix}/repeatmasker/{sample}/{sample}_masked.fa", sample = SAMPLE, prefix = PREFIX),
         funannotate_train = expand("results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam", sample=SAMPLE, prefix=PREFIX),
         funannotate_predict = expand("results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
         funannotate_update = expand("results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),        
-        interproscan_data_dl = config["funqcd_lib"] + "interproscan_data/data/antifam/",
-        #interproscan_data_init = config["funqcd_lib"] + "interproscan_data/test_log.txt",
+        #interproscan_data_dl = config["funqcd_lib"] + "interproscan_data/data/antifam/",
         interproscan = expand("results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml", sample=SAMPLE, prefix=PREFIX),
-        eggnog_data_dl = config["funqcd_lib"] + "eggnog_data/eggnog.db",
+        #eggnog_data_dl = config["funqcd_lib"] + "eggnog_data/eggnog.db",
         eggnog = expand("results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations", sample=SAMPLE, prefix=PREFIX),
         funannotate_annotate = expand("results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa", sample=SAMPLE, prefix=PREFIX),
-        busco_final = expand("results/{prefix}/busco/busco_output_prot/batch_summary.txt", prefix = PREFIX)
+        busco_final = expand("results/{prefix}/busco/busco_output_prot/batch_summary.txt", prefix = PREFIX),
+        qc_report_final = expand("results/{prefix}/multiqc/{prefix}_final_qc_summary.tsv", prefix = PREFIX),
 
 rule coverage:
     input:
         r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
         r2 = config["short_reads"] + "/" + "{sample}_R2.fastq.gz",
-        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
-        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz")),
-        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
-        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),
     output:
         coverage = "results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json",
     params:
         size=config["genome_size"]
-    #conda:
-    #    "envs/fastq-scan.yaml"
     resources:
         mem_mb=2000,
         runtime=20
@@ -190,10 +186,6 @@ rule quality_raw:
     input:
         r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
         r2 = config["short_reads"] + "/" + "{sample}_R2.fastq.gz",
-        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
-        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz")),
-        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
-        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),
     output:
         raw_fastqc_report_fwd = "results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html",
         raw_fastqc_report_rev = "results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html",
@@ -201,16 +193,11 @@ rule quality_raw:
         "logs/{prefix}/quality_raw/{sample}/{sample}.log"
     params:
         outdir="results/{prefix}/quality_raw/{sample}/{sample}"
-    #conda:
-    #    "envs/fastqc.yaml"
     resources:
         mem_mb = 1000,
         runtime = 10
     singularity:
         "docker://staphb/fastqc:0.12.1"
-    #envmodules:
-    #    "Bioinformatics",
-    #    "fastqc"
     shell:
         """
         mkdir -p {params.outdir}_Forward {params.outdir}_Reverse
@@ -221,10 +208,6 @@ rule trimmomatic_pe:
     input:
         r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
         r2 = config["short_reads"] + "/" + "{sample}_R2.fastq.gz",
-        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1.fastq.gz")),
-        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2.fastq.gz"))
-        #r1 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R1_001.fastq.gz")),
-        #r2 = lambda wildcards: expand(str(config["short_reads"] + "/" + f"{wildcards.sample}_R2_001.fastq.gz")),  
     output:
         r1 = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz",
         r2 = "results/{prefix}/trimmomatic/{sample}/{sample}_R2_trim_paired.fastq.gz", 
@@ -243,23 +226,14 @@ rule trimmomatic_pe:
         minlength=config["minlength"],
         headcrop_length=config["headcrop_length"],
         lead_trail_qual=config["lead_trail_qual"],
-        #threads = config["ncores"],
     log:
         "logs/{prefix}/trimmomatic/{sample}/{sample}.log"
     threads: 8
-    # threads: workflow.cores
-    # This has been changed to specifically use 8 cores (the previous default number of cores used)
-    # Before, this always allocated the maximum number of cores
-    #conda:
-    #    "envs/trimmomatic.yaml"
     singularity:
         "docker://staphb/trimmomatic:0.39"
     resources:
         mem_mb = 5000,
         runtime = 30
-    #envmodules:
-    #    "Bioinformatics",
-    #    "trimmomatic"
     shell:
         """
         trimmomatic PE {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} -threads {threads} \
@@ -271,8 +245,6 @@ rule quality_aftertrim:
     input:
         r1 = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz",
         r2 = "results/{prefix}/trimmomatic/{sample}/{sample}_R2_trim_paired.fastq.gz",
-        #r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
-        #r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
     output:
         aftertrim_fastqc_report_fwd = "results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html",
         aftertrim_fastqc_report_rev = "results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html",
@@ -280,16 +252,11 @@ rule quality_aftertrim:
         "logs/{prefix}/{sample}/quality_aftertrim/{sample}.log"
     params:
         outdir="results/{prefix}/quality_aftertrim/{sample}/{sample}"
-    #conda:
-    #    "envs/fastqc.yaml"
     singularity:
         "docker://staphb/fastqc:0.12.1"
     resources:
         mem_mb = 3000,
         runtime = 30
-    #envmodules:
-    #    "Bioinformatics",
-    #    "fastqc"
     shell:
         """
         mkdir -p {params.outdir}_Forward {params.outdir}_Reverse
@@ -300,8 +267,6 @@ rule downsample:
     input:
         r1 = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz",
         r2 = "results/{prefix}/trimmomatic/{sample}/{sample}_R2_trim_paired.fastq.gz",
-        #r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
-        #r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/trimmomatic/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
     output:
         outr1 = "results/{prefix}/downsample/{sample}/{sample}_R1_trim_paired.fastq.gz",
         outr2 = "results/{prefix}/downsample/{sample}/{sample}_R2_trim_paired.fastq.gz",
@@ -313,43 +278,18 @@ rule downsample:
     run:
         downsample_reads({input.r1}, {input.r2}, {output.outr1}, {output.outr2}, {params.gsize})
 
-# rule kraken:
-#     input:
-#         r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/downsample/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
-#         r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/downsample/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
-#     output:
-#         kraken_out = f"results/{{prefix}}/kraken/{{sample}}/{{sample}}_kraken_out",
-#         kraken_report = f"results/{{prefix}}/kraken/{{sample}}/{{sample}}_kraken_report.tsv",
-#     params:
-#         db = config["kraken_db"],
-#         threads = 12
-#         # threads = config["threads"]
-#     #conda:
-#     #    "envs/kraken.yaml"
-#     singularity:
-#         "docker://staphb/kraken2:2.1.3"
-#     shell:
-#         "kraken2 --db {params.db} --threads {params.threads} --paired --gzip-compressed --quick --output {output.kraken_out} --report {output.kraken_report} {input.r1} {input.r2}"
 
 rule assembly:
     input:
         r1 = "results/{prefix}/downsample/{sample}/{sample}_R1_trim_paired.fastq.gz",
         r2 = "results/{prefix}/downsample/{sample}/{sample}_R2_trim_paired.fastq.gz",
-        #r1 = lambda wildcards: expand(f"results/{wildcards.prefix}/downsample/{wildcards.sample}/" + f"{wildcards.sample}_R1_trim_paired.fastq.gz"),
-        #r2 = lambda wildcards: expand(f"results/{wildcards.prefix}/downsample/{wildcards.sample}/" + f"{wildcards.sample}_R2_trim_paired.fastq.gz"),
     output:
         spades_assembly = "results/{prefix}/spades/{sample}/contigs.fasta",
     params:
         out_dir = "results/{prefix}/spades/{sample}/",
         mem_g = 15
-        #db = config["kraken_db"],
-    #conda:
-    #    "envs/spades.yaml"
     singularity:
         "docker://staphb/spades:4.0.0"
-    #envmodules:
-    #    "Bioinformatics",
-    #    "spades/4.0.0"
     threads: 8
     resources:
         mem_mb = 15000,
@@ -357,21 +297,6 @@ rule assembly:
     shell:
         "spades.py --isolate --pe1-1 {input.r1} --pe1-2 {input.r2} -o {params.out_dir} --threads {threads} --memory {params.mem_g}"
 
-#rule bioawk:
-#    input:
-#        spades_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.sample}/spades/contigs.fasta"),
-#    output:
-#        spades_l1000_assembly = f"results/{{prefix}}/{{sample}}/spades/{{sample}}_contigs_l1000.fasta",
-#    params:
-#        out_dir = "results/{prefix}/{sample}/spades/",
-#        bioawk_params = config["bioawk"],
-#        prefix = "{sample}",
-#    conda:
-#        "envs/bioawk.yaml"
-#    shell:
-#        """
-#        {params.bioawk_params} {input.spades_assembly} > {output.spades_l1000_assembly} && grep '>' {output.spades_l1000_assembly} > {params.out_dir}/spades_assembly_header_info.txt && sed -i 's/>NODE_/>{params.prefix}_/g' {output.spades_l1000_assembly} && sed -i 's/_length_.*_cov_.*//g' {output.spades_l1000_assembly}
-#        """
 
 rule bioawk:
     input:
@@ -382,8 +307,6 @@ rule bioawk:
         out_dir = "results/{prefix}/spades/{sample}/",
         bioawk_params = config["bioawk"],
         prefix = "{sample}"
-    #conda:
-    #    "envs/bioawk.yaml"
     resources:
         mem_mb = 5000,
         runtime = 30
@@ -394,26 +317,6 @@ rule bioawk:
         ./bioawk.sh {input.spades_assembly} {output.spades_l1000_assembly} {params.out_dir} {params.prefix}
         """
 
-# rule funannotate:
-#     input:
-#         spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
-#     output:
-    #     prokka_gff = f"results/{{prefix}}/prokka/{{sample}}/{{sample}}.gff",
-    # params: 
-    #     prokka_params = config["prokka"],
-    #     outdir = "results/{prefix}/prokka/{sample}",
-    #     prefix = "{sample}",
-    #conda:
-    #    "envs/prokka.yaml"
-#     singularity:
-#         "docker://nextgenusfs/funannotate"
-#     #envmodules:
-#     #    "Bioinformatics",
-#     #    "funannotate"
-#     shell:
-#         "prokka -outdir {params.outdir} --strain {params.prefix} --prefix {params.prefix} {params.prokka_params} {input.spades_l1000_assembly}"
-#     #cd /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2023_09_21_Funannotate_References
-# #funannotate predict -i /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2023_09_21_Funannotate_References/B11205_mask.fna -o /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2023_09_21_Funannotate_References/B11205_funannotate -s "Candida auris" --augustus_species "candida_albicans" --AUGUSTUS_CONFIG_PATH=/nfs/turbo/umms-esnitkin/conda/funannotate/config/ --cpus 8 
 
 rule quast:
     input:
@@ -423,21 +326,15 @@ rule quast:
     params: 
         outdir = "results/{prefix}/quast/{sample}/",
         prefix = "{sample}",
-    #conda:
-    #    "envs/quast.yaml"
     resources:
         mem_mb = 5000,
         runtime = 30
     singularity:
         "docker://staphb/quast:5.0.2"
-    #envmodules:
-    #    "Bioinformatics",
-    #    "quast"
     shell:
         """
         ./quast.sh {input.spades_l1000_assembly} {params.outdir} 
         """
-        #"quast.py {input.spades_l1000_assembly} -o {params.outdir} --contig-thresholds 0,1000,5000,10000,25000,50000"
 
 rule auriclass:
     input:
@@ -445,7 +342,6 @@ rule auriclass:
     output:
         auriclass_report = "results/{prefix}/auriclass/{sample}/{sample}_report.tsv",
     params: 
-        #outdir = "results/{prefix}/mlst/{sample}/",
         sample = "{sample}",
     resources:
         mem_mb = 5000,
@@ -455,98 +351,6 @@ rule auriclass:
     shell:
         "auriclass --name {params.sample} -o {output.auriclass_report} {input.spades_l1000_assembly}"
 
-#rule amrfinder:
-#    input:
-#        spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/{wildcards.sample}/spades/{wildcards.sample}_contigs_l1000.fasta"),
-#    output:
-#        amrfinder = f"results/{{prefix}}/{{sample}}/amrfinder/{{sample}}_amrfinder.tsv",
-#    params: 
-#        outdir = "results/{prefix}/{sample}/amrfinder",
-#        prefix = "{sample}",
-#        organism = config['amrfinder_organism']
-    #conda:
-    #    "envs/amrfinder.yaml"
-#    singularity:
-#        "docker://staphb/ncbi-amrfinderplus:latest"
-#    shell:
-#        "amrfinder --plus --output {output.amrfinder} --debug --log {params.outdir}/{params.prefix}.log --nucleotide_output {params.outdir}/{params.prefix}_reported_nucl.fna -n {input.spades_l1000_assembly} -O {params.organism}"
-
-# rule busco:
-#     input:
-#         spades_l1000_assembly = lambda wildcards: expand(f"results/{wildcards.prefix}/spades/{wildcards.sample}/{wildcards.sample}_contigs_l1000.fasta"),
-#     output:
-#         busco_out = f"results/{{prefix}}/{{sample}}/busco/busco.txt",
-#     params: 
-#         outdir = "results/{prefix}/busco/{sample}/",
-#         prefix = "{sample}",
-#         # threads = config["ncores"],
-#     #conda:
-#     #    "envs/busco.yaml"
-#     singularity:
-#         #"docker://staphb/busco:5.7.1-prok-bacteria_odb10_2024-01-08"
-#         "docker://ezlabgva/busco:v5.7.1_cv1"
-#     threads: 8
-#     # threads: workflow.cores
-#     #envmodules:
-#     #    "Bioinformatics",
-#     #    "busco"
-#     shell:
-#         "busco -f -i {input.spades_l1000_assembly} -m genome -l bacteria_odb10 -o {params.outdir}"
-
-# rule skani:
-#     input:
-#         spades_contigs_file = "results/{prefix}/spades/{sample}/contigs.fasta",
-#     output:
-#         skani_output = "results/{prefix}/skani/{sample}/{sample}_skani_output.txt"
-#     params:
-#         skani_ani_db = config["skani_db"],
-#         #threads = 4
-#     threads: 4
-#     resources:
-#         mem_mb = 5000,
-#         runtime = 30
-#     #conda:
-#     #    "envs/skani.yaml"
-#     singularity:
-#         "docker://staphb/skani:0.2.1"
-#     shell:
-#         "skani search {input.spades_contigs_file} -d {params.skani_ani_db} -o {output.skani_output} -t {threads}"
-        
-rule multiqc:
-    input:
-        quast_report = expand("results/{prefix}/quast/{sample}/report.tsv", sample = SAMPLE, prefix = PREFIX),
-        #prokka_gff = "results/{prefix}/{sample}/prokka/{sample}.gff",
-        #spades_assembly = "results/{prefix}/spades/{sample}/contigs.fasta",
-        #kraken_report = "results/{prefix}/{sample}/kraken/{sample}_kraken_report.tsv",
-        #coverage = "results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json",
-        aftertrim_fastqc_report_fwd = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        aftertrim_fastqc_report_rev = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        raw_fastqc_report_fwd = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
-        busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
-        #busco_out = "results/{prefix}/busco/busco_output/batch_summary.txt",
-    output:
-        multiqc_report = "results/{prefix}/multiqc/{prefix}_QC_report.html",
-    params:
-        #resultsoutdir = "results/{prefix}",
-        outdir = "results/{prefix}/multiqc",
-        prefix = "{prefix}",
-        quast_dir = "results/{prefix}/quast/",
-        raw_fastqc_dir = "results/{prefix}/quality_raw/",
-        aftertrim_fastqc_dir = "results/{prefix}/quality_aftertrim/",
-        busco_dir_p = "results/{prefix}/busco/busco_output_prot/",
-        busco_dir_n = "results/{prefix}/busco/busco_output_nucl/",
-    resources:
-        mem_mb = 1000,
-        runtime = 20
-    singularity:
-        "docker://multiqc/multiqc:v1.25.1"
-    shell:
-        """
-        multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report \
-        {params.quast_dir} {params.raw_fastqc_dir} {params.aftertrim_fastqc_dir} {params.busco_dir_p} {params.busco_dir_n}
-        """
 
 # This adds another BUSCO database for funannotate to use
 # This is bound via singularity to add it to the existing databases
@@ -581,9 +385,6 @@ rule funannotate_sort:
         funannotate clean -i {input.spades_l1000_assembly} -o {params.out_dir}{params.sample}_cleaned.fa
         funannotate sort -i {params.out_dir}{params.sample}_cleaned.fa -o {params.out_dir}{params.sample}_sorted.fa --minlen 0
         """
-# removed: funannotate mask -i {params.out_dir}{params.sample}_sorted.fa -o {params.out_dir}{params.sample}_masked.fa
-# removed: funannotate annotate -i {output.funannotate_predict_out} -o {params.out_dir} --cpus {threads}
-# removed: funannotate predict -i {params.out_dir}{params.sample}_masked.fa -o {params.out_dir} --species '{params.sample}' --augustus_species candida_albicans --cpus {threads}
 
 # This will generate a directory named RM_* with a large number of temporary files. 
 # There does not appear to be a way to change this output from RepeatMasker itself, so these files are deleted in a later rule
@@ -630,7 +431,6 @@ rule funannotate_train:
         rna_data_r2 = ' '.join(sorted([config["funqcd_lib"] + 'rna_seq_data/' + x for x in os.listdir(config["funqcd_lib"] + 'rna_seq_data/') if '_R2_' in x and 'fastq.gz' in x])),
         mem_g = "30G",
         test = vars(workflow.resources)
-    # threads: workflow.cores
     threads: 8
     resources:
         mem_mb = 32000,
@@ -696,25 +496,24 @@ rule funannotate_update:
 
 
 # This downloads the databases needed for InterProScan and moves them to the directory bound via singularity
-# in progress for local download (replace path with config["funqcd_lib"])
-rule interproscan_data_dl:
-    output:
-        #interproscan_data_dl_dir = directory('interproscan-5.71-102.0/data/')
-        interproscan_data = directory(config["funqcd_lib"] + "interproscan_data/data/antifam/")
-    shell:
-        """
-        curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.71-102.0/alt/interproscan-data-5.71-102.0.tar.gz
-        curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.71-102.0/alt/interproscan-data-5.71-102.0.tar.gz.md5
-        if md5sum -c --quiet interproscan-data-5.71-102.0.tar.gz.md5; then
-        tar -pxzf interproscan-data-5.71-102.0.tar.gz
-        mv interproscan-5.71-102.0/data/* lib/interproscan_data/data/
-        rm interproscan-data-5.71-102.0.tar.gz
-        rm interproscan-data-5.71-102.0.tar.gz.md5
-        rm -r interproscan-5.71-102.0
-        else
-        echo 'Error downloading InterProScan data'
-        fi
-        """
+# rule interproscan_data_dl:
+#     output:
+#         #interproscan_data_dl_dir = directory('interproscan-5.71-102.0/data/')
+#         interproscan_data = directory(config["funqcd_lib"] + "interproscan_data/data/antifam/")
+#     shell:
+#         """
+#         curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.71-102.0/alt/interproscan-data-5.71-102.0.tar.gz
+#         curl -O http://ftp.ebi.ac.uk/pub/software/unix/iprscan/5/5.71-102.0/alt/interproscan-data-5.71-102.0.tar.gz.md5
+#         if md5sum -c --quiet interproscan-data-5.71-102.0.tar.gz.md5; then
+#         tar -pxzf interproscan-data-5.71-102.0.tar.gz
+#         mv interproscan-5.71-102.0/data/* lib/interproscan_data/data/
+#         rm interproscan-data-5.71-102.0.tar.gz
+#         rm interproscan-data-5.71-102.0.tar.gz.md5
+#         rm -r interproscan-5.71-102.0
+#         else
+#         echo 'Error downloading InterProScan data'
+#         fi
+#         """
 
 # This initializes and tests the InterProScan data, using a script called ips_setup.sh
 # rule interproscan_data_init:
@@ -741,11 +540,10 @@ rule interproscan:
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/interproscan/",
         sample = "{sample}",
-        # cpus = config["ncores"]
     threads: 8
     resources:
         mem_mb = 15000,
-        runtime = 600
+        runtime = 360
     shell:
         """
         bash /opt/interproscan/interproscan.sh --input {input.funannotate_predict_proteins} --output-dir {params.out_dir} \
@@ -753,15 +551,15 @@ rule interproscan:
         """
 
 # this downloads the databases needed for eggnog to run
-rule eggnog_data_dl:
-    output:
-        eggnog_data = config["funqcd_lib"] + "eggnog_data/eggnog.db"
-    singularity:
-        "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
-    shell:
-        """
-        download_eggnog_data.py -y --data_dir lib/eggnog_data/
-        """
+# rule eggnog_data_dl:
+#     output:
+#         eggnog_data = config["funqcd_lib"] + "eggnog_data/eggnog.db"
+#     singularity:
+#         "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
+#     shell:
+#         """
+#         download_eggnog_data.py -y --data_dir lib/eggnog_data/
+#         """
 
 rule eggnog:
     input:
@@ -777,8 +575,8 @@ rule eggnog:
         sample = "{sample}"
     threads: 8
     resources:
-        mem_mb = 15000,
-        runtime = 600
+        mem_mb = 10000,
+        runtime = 300
     shell:
         """
         emapper.py -i {input.funannotate_predict_proteins} --itype proteins --data_dir {params.eggnog_data_dir} -m diamond \
@@ -797,7 +595,6 @@ rule funannotate_annotate:
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
         sample = "{sample}",
-        # cpus = config["ncores"]
     threads: 8
     resources:
         mem_mb = 3000,
@@ -823,8 +620,8 @@ rule busco_final:
         busco_db = config["funqcd_lib"] + "busco/"
     threads: 8
     resources:
-        mem_mb = 15000,
-        runtime = 45
+        mem_mb = 10000,
+        runtime = 240
     singularity:
         "docker://ezlabgva/busco:v5.7.0_cv1"
     shell:
@@ -837,3 +634,60 @@ rule busco_final:
         busco -f --in results/{params.prefix}/busco/input/nucl --mode genome --lineage_dataset saccharomycetes_odb10 --out_path results/{params.prefix}/busco/ -c {threads} --out busco_output_nucl --offline --download_path {params.busco_db}
         rm -rf RM_*
         """
+
+rule multiqc:
+    input:
+        quast_report = expand("results/{prefix}/quast/{sample}/report.tsv", sample = SAMPLE, prefix = PREFIX),
+        #prokka_gff = "results/{prefix}/{sample}/prokka/{sample}.gff",
+        #spades_assembly = "results/{prefix}/spades/{sample}/contigs.fasta",
+        #kraken_report = "results/{prefix}/{sample}/kraken/{sample}_kraken_report.tsv",
+        #coverage = "results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json",
+        aftertrim_fastqc_report_fwd = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        aftertrim_fastqc_report_rev = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        raw_fastqc_report_fwd = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
+        busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
+        #busco_out = "results/{prefix}/busco/busco_output/batch_summary.txt",
+    output:
+        multiqc_report = "results/{prefix}/multiqc/{prefix}_QC_report.html",
+    params:
+        #resultsoutdir = "results/{prefix}",
+        outdir = "results/{prefix}/multiqc",
+        prefix = "{prefix}",
+        quast_dir = "results/{prefix}/quast/",
+        raw_fastqc_dir = "results/{prefix}/quality_raw/",
+        aftertrim_fastqc_dir = "results/{prefix}/quality_aftertrim/",
+        busco_dir_p = "results/{prefix}/busco/busco_output_prot/",
+        busco_dir_n = "results/{prefix}/busco/busco_output_nucl/",
+    resources:
+        mem_mb = 2000,
+        runtime = 100
+    singularity:
+        "docker://multiqc/multiqc:v1.25.1"
+    shell:
+        """
+        multiqc -f --outdir {params.outdir} -n {params.prefix}_QC_report -i {params.prefix}_QC_report \
+        {params.quast_dir} {params.raw_fastqc_dir} {params.aftertrim_fastqc_dir} {params.busco_dir_p} {params.busco_dir_n}
+        """
+
+rule qc_report_final:
+    input:
+        multiqc_report = "results/{prefix}/multiqc/{prefix}_QC_report.html",
+        auriclass_report = expand("results/{prefix}/auriclass/{sample}/{sample}_report.tsv", sample = SAMPLE, prefix = PREFIX), 
+        raw_coverage_report = expand("results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json", sample = SAMPLE, prefix = PREFIX),
+    output:
+        summary_output = "results/{prefix}/multiqc/{prefix}_final_qc_summary.tsv"
+    params:
+        multiqc_dir = "results/{prefix}/multiqc/{prefix}_QC_report_data/",
+        auriclass_dir = "results/{prefix}/auriclass/", 
+        raw_coverage_dir = "results/{prefix}/raw_coverage/",
+    resources:
+        mem_mb = 2000,
+        runtime = 60,
+    script:
+        "QC_summary.py"
+    
+    
+
+        
