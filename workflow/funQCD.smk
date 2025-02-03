@@ -434,7 +434,7 @@ rule funannotate_train:
     threads: 8
     resources:
         mem_mb = 32000,
-        runtime = 700
+        runtime = 780
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:

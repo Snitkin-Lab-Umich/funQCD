@@ -4,13 +4,13 @@
 samples: config/samples.csv
 
 # Path to your raw sequencing reads (do not end this path with '/')
-short_reads: /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/raw_data
+short_reads: /nfs/turbo/umms-esnitkin/Project_Cauris/Sequence_data/illumina_fastq/2025_01_29_UM_illumina/raw_fastq
 # format for this path:
 # short_reads: /nfs/turbo/umms-esnitkin/Project_Cauris/Sequence_data/illumina_fastq/[batch_name]
 
 # Directory prefix where the outputs will be saved to
 # Rename this to your preferred naming convention with this format: year-month-day_Project_Name_funQCD
-prefix: 2024-11-14_Chicago_strains_v2
+prefix: 2025-01-29_UM_illumina
 
 # Change to genome size of your organism of interest 
 genome_size: 12000000
