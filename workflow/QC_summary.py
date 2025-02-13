@@ -151,37 +151,6 @@ def main(multiqc_path, auriclass_path, raw_coverage_path, output_path, n50_min, 
     
 
 if __name__ == "__main__":
-    #inp = '/nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_12_16_nanofunsake/funQCD/results/2024-11-14_Chicago_strains_v2/auriclass/'
-    #outp = '/nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_12_16_nanofunsake/funQCD/results/2024-11-14_Chicago_strains_v2/auriclass/'
-    #inp = '/Users/josephhale/Desktop/qc/auriclass'
-    #outp = '/Users/josephhale/Desktop/qc/auriclass'
-    #make_summary_report(input_path = inp, output_path = outp, report = 'auriclass', type = 'tsv')
-    #inp = '/nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_12_16_nanofunsake/funQCD/results/2024-11-14_Chicago_strains_v2/raw_coverage/'
-    #outp = '/nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_12_16_nanofunsake/funQCD/results/2024-11-14_Chicago_strains_v2/raw_coverage/'
-    #inp = '/Users/josephhale/Desktop/qc/raw_coverage'
-    #outp = '/Users/josephhale/Desktop/qc/raw_coverage'
-    #make_summary_report(input_path = inp, output_path = outp, report = 'raw_coverage', type = 'json')
-    #mult = '/nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_12_16_nanofunsake/funQCD/results/2024-11-14_Chicago_strains_v2/multiqc/2024-11-14_Chicago_strains_v2_QC_report_data/'
-    #aur = '/nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_12_16_nanofunsake/funQCD/results/2024-11-14_Chicago_strains_v2/auriclass/summary.tsv'
-    #rcov = '/nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_12_16_nanofunsake/funQCD/results/2024-11-14_Chicago_strains_v2/raw_coverage/summary.tsv'
-    #outp = '/nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_12_16_nanofunsake/funQCD/results/2024-11-14_Chicago_strains_v2/multiqc/final_qc_summary.tsv'
-    #mult = '/Users/josephhale/Desktop/qc/multiqc/2024-11-14_Chicago_strains_v2_QC_report_data/'
-    #aur = '/Users/josephhale/Desktop/qc/auriclass/summary.tsv'
-    #rcov = '/Users/josephhale/Desktop/qc/raw_coverage/summary.tsv'
-    #outp = '/Users/josephhale/Desktop/qc/multiqc/final_qc_summary.tsv'
-    #final_qc_summary(multiqc_path = mult,auriclass_path = aur,raw_coverage_path = rcov, output_path = outp)
-    #mult = '/Users/josephhale/Desktop/qc/multiqc/2024-11-14_Chicago_strains_v2_QC_report_data/'
-    #auri = '/Users/josephhale/Desktop/qc/auriclass/'
-    #rcov = '/Users/josephhale/Desktop/qc/raw_coverage/'
-    #outp = '/Users/josephhale/Desktop/qc/multiqc/final_qc_summary.tsv'
-    #n50_min = 50000
-    #contig_number_max = 500
-    #contig_number_min = 10
-    #assembly_length_max = 13000000
-    #average_coverage_min = 20
-    #fastqc_tests_passed_min = 7
-    #busco_n_score_min = 97
-    #main(mult, auri, rcov, outp, n50_min, contig_number_max, contig_number_min, assembly_length_max, average_coverage_min, fastqc_tests_passed_min, busco_n_score_min)
     mult = snakemake.params["multiqc_dir"]
     auri = snakemake.params["auriclass_dir"]
     rcov = snakemake.params["raw_coverage_dir"]
