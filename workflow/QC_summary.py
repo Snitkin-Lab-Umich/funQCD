@@ -129,7 +129,7 @@ def qc_evaluate(input_df, n50_min, contig_number_max, contig_number_min, assembl
     
     status = ['FAIL'] * len(qc_check)
     
-    input_df['QC_EVALUTATION'] = np.select(qc_check, status, default='PASS')
+    input_df['QC_EVALUATION'] = np.select(qc_check, status, default='PASS')
     return(input_df)
 
 
