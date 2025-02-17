@@ -55,7 +55,7 @@ bioawk: bioawk -c fastx '{if(length($seq) > 1000) {print ">"$name; print $seq }}
 #amrfinder_organism: Klebsiella_pneumoniae
 
 # QC thresholds 
-min_contigs: 10
+min_contigs: 7
 max_contigs: 500
 min_assembly_length: 11000000
 max_assembly_length: 13000000
