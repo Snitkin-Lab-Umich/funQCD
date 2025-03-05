@@ -4,13 +4,13 @@
 samples: config/samples.csv
 
 # Path to your raw sequencing reads (do not end this path with '/')
-short_reads: /nfs/turbo/umms-esnitkin/Project_Cauris/Sequence_data/illumina_fastq/2025_02_05_chicago_illumina/raw_fastq
+short_reads: test_reads
 # format for this path:
 # short_reads: /nfs/turbo/umms-esnitkin/Project_Cauris/Sequence_data/illumina_fastq/[batch_name]
 
 # Directory prefix where the outputs will be saved to
 # Rename this to your preferred naming convention with this format: year-month-day_Project_Name_funQCD
-prefix: 2025-02-05_chicago_illumina
+prefix: 2025-02-27_subworkflow_test
 
 # Change to genome size of your organism of interest 
 genome_size: 12000000
@@ -80,7 +80,11 @@ funqcd_lib: /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testi
 # └—interproscan_data
 #     └-data 
 # You can create this file structure in your working directory and the setup rules will download the relevant databases
-# This will likely require you to set up the funannotate database separately:
-# 
+# This will likely require you to set up the funannotate database separately.
+
+# This is an example QC summary file used as a template. It's used to indicate that certain samples fail early steps in the pipeline.
+# The first row should contain a failed sample, and the second row should contain a passing sample.
+# These columns should be identical to the final QC file produced by the pipeline.
+example_qc_summary_file: config/example_qc_summary.tsv
 
 # Feel free to remove the comments after you have customized the file.
