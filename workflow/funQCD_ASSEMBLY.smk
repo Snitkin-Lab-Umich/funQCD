@@ -115,7 +115,6 @@ def downsample_reads(file, file2, out1, out2, genome_size):
 
 
 
-
 # main pipeline
 
 rule all:
@@ -235,6 +234,11 @@ rule downsample:
         downsample_reads({input.r1}, {input.r2}, {output.outr1}, {output.outr2}, {params.gsize})
 
 
+
+# define a function for adjusting runtime based on attempt number
+def get_assembly_runtime(wildcards,attempt):
+    return(30 + (60 * (attempt - 1)))
+
 rule assembly:
     input:
         r1 = "results/{prefix}/downsample/{sample}/{sample}_R1_trim_paired.fastq.gz",
@@ -249,7 +253,8 @@ rule assembly:
     threads: 8
     resources:
         mem_mb = 15000,
-        runtime=30
+        #runtime = 30,
+        runtime = get_assembly_runtime,
     shell:
         "spades.py --isolate --pe1-1 {input.r1} --pe1-2 {input.r2} -o {params.out_dir} --threads {threads} --memory {params.mem_g}"
 
@@ -357,7 +362,8 @@ rule check_assembly:
         runtime = 20,
     params:
         example_qc = config["example_qc_summary_file"],
-        new_sample_file = "config/assembly_pass_samples.csv",
+        #new_sample_file = "config/assembly_pass_samples.csv",
+        new_sample_file = "results/{prefix}/assembly_pass_samples.csv",
         intermediate_qc = "results/{prefix}/quast/failed_assembly_qc_summary.tsv",
         max_contigs = config["max_contigs"],
         min_n50 = config["min_n50"],

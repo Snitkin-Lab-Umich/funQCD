@@ -7,11 +7,12 @@ configfile: "config/config.yaml"
 import pandas as pd
 import os
 
-samples_df = pd.read_csv('config/assembly_pass_samples.csv')
+PREFIX = config["prefix"]
+
+samples_df = pd.read_csv(f'results/{PREFIX}/assembly_pass_samples.csv')
 # this is the new sample file created by the previous step in the pipeline (funQCD_ASSEMBLY)
 SAMPLE = list(samples_df['sample_id'])
 
-PREFIX = config["prefix"]
 
 rule all:
     input:
@@ -116,14 +117,12 @@ rule funannotate_predict:
     input:
         masked_assembly = "results/{prefix}/repeatmasker/{sample}/{sample}_masked.fa",
         funannotate_training_rna_bam = "results/{prefix}/funannotate/{sample}/training/funannotate_train.coordSorted.bam",
-        busco_db = config["funqcd_lib"] + "busco/lineages/saccharomycetes_odb10/dataset.cfg"
+        #busco_db = config["funqcd_lib"] + "busco/lineages/saccharomycetes_odb10/dataset.cfg"
     output:
         funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
-        #funannotate_predict_out = directory("results/{prefix}/funannotate/{sample}/predict_results/"),
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
         predict_out_dir = "results/{prefix}/funannotate/{sample}/predict_results/",
-        #sample = "{sample}",
         genemark_path = config["funqcd_lib"] + "genemark/gmes_linux_64_4/",
     threads: 8
     resources:
@@ -158,10 +157,8 @@ rule funannotate_update:
         funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
     output:
         funannotate_update_proteins = "results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa",
-        #funannotate_update_out = directory("results/{prefix}/funannotate/{sample}/update_results/")
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
-        #sample = "{sample}"
     threads: 8
     resources:
         mem_mb = 15000,
@@ -214,7 +211,8 @@ rule check_update:
         outp = "results/{prefix}/funannotate/{sample}/update_results/annotation_check.txt",
     params:
         example_qc = config["example_qc_summary_file"],
-        new_sample_file = "config/predict_pass_samples.csv",
+        #new_sample_file = "config/predict_pass_samples.csv",
+        new_sample_file = "results/{prefix}/predict_pass_samples.csv",
         intermediate_qc = "results/{prefix}/funannotate/failed_prediction_qc_summary.tsv",
     resources:
         mem_mb = 2000,

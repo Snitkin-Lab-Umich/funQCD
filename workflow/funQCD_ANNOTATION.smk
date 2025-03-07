@@ -7,11 +7,12 @@ configfile: "config/config.yaml"
 import pandas as pd
 import os
 
-samples_df = pd.read_csv('config/predict_pass_samples.csv')
+PREFIX = config["prefix"]
+
+samples_df = pd.read_csv(f'results/{PREFIX}/predict_pass_samples.csv')
 # this is the new sample file created by the previous step in the pipeline (funQCD_PREDICTION)
 SAMPLE = list(samples_df['sample_id'])
 
-PREFIX = config["prefix"]
 
 rule all:
     input:
@@ -19,7 +20,8 @@ rule all:
 
 rule interproscan:
     input:
-       funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
+        funannotate_update_proteins = "results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa",
+       #funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
     output:
         interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml"
     singularity:
@@ -33,20 +35,20 @@ rule interproscan:
         runtime = 360
     shell:
         """
-        bash /opt/interproscan/interproscan.sh --input {input.funannotate_predict_proteins} --output-dir {params.out_dir} \
+        bash /opt/interproscan/interproscan.sh --input {input.funannotate_update_proteins} --output-dir {params.out_dir} \
         --disable-precalc --cpu {threads}
         """
 
 rule eggnog:
     input:
-        funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
+        funannotate_update_proteins = "results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa",
+        #funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
     output:
         eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations"
     singularity:
         "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
     params:
         eggnog_data_dir = config["funqcd_lib"] + "eggnog_data/",
-        #eggnog_data = config["funqcd_lib"] + "eggnog_data/eggnog.db",
         out_dir = "results/{prefix}/funannotate/{sample}/eggnog/",
     threads: 8
     resources:
@@ -54,13 +56,14 @@ rule eggnog:
         runtime = 300
     shell:
         """
-        emapper.py -i {input.funannotate_predict_proteins} --itype proteins --data_dir {params.eggnog_data_dir} -m diamond \
+        emapper.py -i {input.funannotate_update_proteins} --itype proteins --data_dir {params.eggnog_data_dir} -m diamond \
         --output {wildcards.sample} --output_dir {params.out_dir} --cpu {threads} --override
         """
 
 rule funannotate_annotate:
     input:
-        funannotate_predict_out = "results/{prefix}/funannotate/{sample}/update_results/",
+        funannotate_update_proteins = "results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa",
+        #funannotate_predict_out = "results/{prefix}/funannotate/{sample}/update_results/",
         interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml",
         eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations",
     output:
@@ -68,8 +71,7 @@ rule funannotate_annotate:
         funannotate_annotate_assembly = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.scaffolds.fa",
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
-        #busco_db = config["funqcd_lib"] + "busco/lineages/saccharomycetes_odb10/dataset.cfg",
-        #sample = "{sample}",
+        funannotate_update_dir = "results/{prefix}/funannotate/{sample}/update_results/",
     threads: 8
     resources:
         mem_mb = 3000,
@@ -78,7 +80,7 @@ rule funannotate_annotate:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
         """
-        funannotate annotate -i {input.funannotate_predict_out} -o {params.out_dir} --cpus {threads} \
+        funannotate annotate -i {params.funannotate_update_dir} -o {params.out_dir} --cpus {threads} \
         --iprscan {input.interproscan_out} --eggnog {input.eggnog_out} --busco_db saccharomycetes_odb10
         """
 
@@ -91,7 +93,6 @@ rule busco_final:
         busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
         busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
     params:
-        #prefix = "{prefix}",
         busco_db = config["funqcd_lib"] + "busco/",
     threads: 8
     resources:

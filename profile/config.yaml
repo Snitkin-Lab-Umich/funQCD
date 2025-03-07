@@ -11,6 +11,7 @@ cores: 16
 jobs: 10
 max-jobs-per-second: 1
 max-status-checks-per-second: 1
+retries: 1
 
 # cluster settings
 slurm: True
