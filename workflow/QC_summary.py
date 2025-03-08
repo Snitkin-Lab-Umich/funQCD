@@ -133,7 +133,9 @@ def qc_evaluate(input_df, n50_min, contig_number_max, contig_number_min, assembl
     return(input_df)
 
 
-def main(multiqc_path, auriclass_path, raw_coverage_path, output_path, n50_min, contig_number_max, contig_number_min, assembly_length_max, assembly_length_min, average_coverage_min, fastqc_tests_passed_min, busco_n_score_min):
+def main(multiqc_path, auriclass_path, raw_coverage_path, output_path, 
+         n50_min, contig_number_max, contig_number_min, assembly_length_max, assembly_length_min, average_coverage_min, 
+         fastqc_tests_passed_min, busco_n_score_min, assembly_qc_file, prediction_qc_file):
     auriclass_path,raw_coverage_path = [x+'/' if x[-1] != '/' else x for x in [auriclass_path,raw_coverage_path]]
     # generate auriclass summary
     make_summary_report(input_path = auriclass_path, output_path = auriclass_path, report = 'auriclass', type = 'tsv')
@@ -147,13 +149,20 @@ def main(multiqc_path, auriclass_path, raw_coverage_path, output_path, n50_min, 
         final,n50_min=n50_min,contig_number_max=contig_number_max,contig_number_min=contig_number_min,assembly_length_max=assembly_length_max,assembly_length_min=assembly_length_min,
         average_coverage_min=average_coverage_min,fastqc_tests_passed_min=fastqc_tests_passed_min,busco_n_score_min=busco_n_score_min
         )
-    final_eval.to_csv(output_path, sep='\t',index=False)
+    # read in the intermediate QC files from the previous steps
+    assembly_step_qc = pd.read_csv(assembly_qc_file)
+    prediction_step_qc = pd.read_csv(prediction_qc_file)
+    # add them to the final output
+    final_eval_concat = pd.concat([final_eval,assembly_step_qc,prediction_step_qc])
+    final_eval_concat.to_csv(output_path, sep='\t',index=False)
     
 
 if __name__ == "__main__":
     mult = snakemake.params["multiqc_dir"]
     auri = snakemake.params["auriclass_dir"]
     rcov = snakemake.params["raw_coverage_dir"]
+    assembly_qc_file = snakemake.params["intermediate_qc_assembly"]
+    prediction_qc_file = snakemake.params["intermediate_qc_prediction"]
     outp = snakemake.output[0]
     n50_min = snakemake.config["min_n50"]
     contig_number_min = snakemake.config["min_contigs"]
@@ -166,6 +175,7 @@ if __name__ == "__main__":
     main(
         multiqc_path=mult, auriclass_path=auri, raw_coverage_path=rcov, output_path=outp, n50_min=n50_min, contig_number_max=contig_number_max, contig_number_min=contig_number_min, 
         assembly_length_max=assembly_length_max, assembly_length_min=assembly_length_min, average_coverage_min=average_coverage_min, 
-        fastqc_tests_passed_min=fastqc_tests_passed_min, busco_n_score_min=busco_n_score_min
+        fastqc_tests_passed_min=fastqc_tests_passed_min, busco_n_score_min=busco_n_score_min,
+        assembly_qc_file=assembly_qc_file,prediction_qc_file=prediction_qc_file
         )
 

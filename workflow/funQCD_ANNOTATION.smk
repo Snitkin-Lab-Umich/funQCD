@@ -151,6 +151,8 @@ rule qc_report_final:
         multiqc_dir = "results/{prefix}/multiqc/{prefix}_QC_report_data/",
         auriclass_dir = "results/{prefix}/auriclass/", 
         raw_coverage_dir = "results/{prefix}/raw_coverage/",
+        intermediate_qc_assembly = "results/{prefix}/quast/failed_assembly_qc_summary.tsv",
+        intermediate_qc_prediction = "results/{prefix}/funannotate/failed_prediction_qc_summary.tsv",
     resources:
         mem_mb = 2000,
         runtime = 60,
