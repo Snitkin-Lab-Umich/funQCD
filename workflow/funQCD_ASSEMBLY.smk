@@ -6,6 +6,8 @@ configfile: "config/config.yaml"
 
 import pandas as pd
 import os
+from downsample import *
+# this imports the function used in the downsample rule
 
 samples_df = pd.read_csv(config["samples"])
 SAMPLE = list(samples_df['sample_id'])
@@ -23,98 +25,6 @@ if not os.path.exists("results/" + PREFIX):
     os.system("mkdir %s" % "results/" + PREFIX)
 
 
-# define function for the downsample rule
-
-def downsample_reads(file, file2, out1, out2, genome_size):
-    file = file.pop()
-    file2 = file2.pop()
-    out1 = out1.pop()
-    out2 = out2.pop()
-
-    # Extract basic fastq reads stats with seqtk
-
-    gsize = genome_size.pop()
-
-    print("Using Genome Size: %s to calculate coverage" % gsize)
-    
-    seqtk_check = "/nfs/esnitkin/bin_group/seqtk/seqtk fqchk -q3 %s > %s_fastqchk.txt" % (file, file)
-
-    print(seqtk_check)
-
-    try:
-        os.system(seqtk_check)
-    except sp.CalledProcessError:
-        print('Error running seqtk for extracting fastq statistics.')
-        sys.exit(1)
-
-    with open("%s_fastqchk.txt" % file, 'rU') as file_open:
-        for line in file_open:
-            if line.startswith('min_len'):
-                line_split = line.split(';')
-                min_len = line_split[0].split(': ')[1]
-                max_len = line_split[1].split(': ')[1]
-                avg_len = line_split[2].split(': ')[1]
-            if line.startswith('ALL'):
-                line_split = line.split('\t')
-                total_bases = int(line_split[1]) * 2
-    file_open.close()
-
-    print('Average Read Length: %s' % avg_len)
-
-    print('Total number of bases in fastq: %s' % total_bases)
-
-    # Calculate original depth and check if it needs to be downsampled to a default coverage.
-    ori_coverage_depth = int(total_bases / gsize)
-
-    print('Original Covarage Depth: %s x' % ori_coverage_depth)
-
-    # proc = sp.Popen(["nproc"], stdout=sp.PIPE, shell=True)
-    # (nproc, err) = proc.communicate()
-    # nproc = nproc.strip()
-
-    if ori_coverage_depth >= 100:
-        # Downsample to 100
-        factor = float(100 / float(ori_coverage_depth))
-        # r1_sub = "/tmp/%s" % os.path.basename(file)
-        r1_sub = out1
-
-        # Downsample using seqtk
-        try:
-            #print("Generating seqtk Downsampling command")
-            print("/nfs/esnitkin/bin_group/seqtk/seqtk sample %s %s | pigz --fast -c -p 2 > %s" % (file, factor, r1_sub))
-
-            seqtk_downsample = "/nfs/esnitkin/bin_group/seqtk/seqtk sample %s %s | pigz --fast -c -p 2 > %s" % (
-                file, factor, r1_sub)
-            os.system(seqtk_downsample)
-            #call(seqtk_downsample, logger)
-        except sp.CalledProcessError:
-            print('Error running seqtk for downsampling raw fastq reads.')
-            sys.exit(1)
-
-        if file2:
-            # r2_sub = "/tmp/%s" % os.path.basename(file2)
-            r2_sub = out2
-            try:
-                print("/nfs/esnitkin/bin_group/seqtk/seqtk sample %s %s | pigz --fast -c -p 2 > %s" % (file2, factor, r2_sub))
-                os.system("/nfs/esnitkin/bin_group/seqtk/seqtk sample %s %s | pigz --fast -c -p 2 > %s" % (file2, factor, r2_sub))
-                #call("seqtk sample %s %s | pigz --fast -c -p %s > /tmp/%s" % (file2, factor, nproc, os.path.basename(file2)), logger)
-            except sp.CalledProcessError:
-                print('Error running seqtk for downsampling raw fastq reads.')
-                sys.exit(1)
-        else:
-            r2_sub = "None"
-
-    elif ori_coverage_depth < 100:
-        r1_sub = file
-        r2_sub = file2
-        os.system("cp %s %s" % (file, out1))
-        os.system("cp %s %s" % (file2, out2))
-
-
-
-
-
-
 # main pipeline
 
 rule all:
@@ -130,8 +40,10 @@ rule coverage:
     params:
         size=config["genome_size"]
     resources:
-        mem_mb=2000,
-        runtime=20
+        #mem_mb=2000,
+        mem_mb = lambda wildcards, attempt: 4000 + ((attempt-1)*4000),
+        runtime=20,
+    retries: 1
     singularity:
         "docker://staphb/fastq-scan:1.0.1"
     shell:
@@ -186,9 +98,11 @@ rule trimmomatic_pe:
     threads: 8
     singularity:
         "docker://staphb/trimmomatic:0.39"
+    retries: 1
     resources:
-        mem_mb = 5000,
-        runtime = 30
+        #mem_mb = 15000,
+        mem_mb = lambda wildcards, attempt: 15000 + ((attempt-1)*15000),
+        runtime = 30,
     shell:
         """
         trimmomatic PE {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} -threads {threads} \
@@ -236,8 +150,8 @@ rule downsample:
 
 
 # define a function for adjusting runtime based on attempt number
-def get_assembly_runtime(wildcards,attempt):
-    return(30 + (60 * (attempt - 1)))
+# def get_assembly_runtime(wildcards,attempt):
+#     return(30 + (60 * (attempt - 1)))
 
 rule assembly:
     input:
@@ -251,10 +165,12 @@ rule assembly:
     singularity:
         "docker://staphb/spades:4.0.0"
     threads: 8
+    retries: 1
     resources:
         mem_mb = 15000,
         #runtime = 30,
-        runtime = get_assembly_runtime,
+        #runtime = get_assembly_runtime,
+        runtime = lambda wildcards, attempt: 30 + ((attempt-1)*60)
     shell:
         "spades.py --isolate --pe1-1 {input.r1} --pe1-2 {input.r2} -o {params.out_dir} --threads {threads} --memory {params.mem_g}"
 

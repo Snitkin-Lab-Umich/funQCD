@@ -96,8 +96,8 @@ rule busco_final:
         busco_db = config["funqcd_lib"] + "busco/",
     threads: 8
     resources:
-        mem_mb = 10000,
-        runtime = 240
+        mem_mb = 15000,
+        runtime = 900
     singularity:
         "docker://ezlabgva/busco:v5.7.0_cv1"
     shell:
