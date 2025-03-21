@@ -150,8 +150,8 @@ def main(multiqc_path, auriclass_path, raw_coverage_path, output_path,
         average_coverage_min=average_coverage_min,fastqc_tests_passed_min=fastqc_tests_passed_min,busco_n_score_min=busco_n_score_min
         )
     # read in the intermediate QC files from the previous steps
-    assembly_step_qc = pd.read_csv(assembly_qc_file)
-    prediction_step_qc = pd.read_csv(prediction_qc_file)
+    assembly_step_qc = pd.read_csv(assembly_qc_file,sep='\t')
+    prediction_step_qc = pd.read_csv(prediction_qc_file,sep='\t')
     # add them to the final output
     final_eval_concat = pd.concat([final_eval,assembly_step_qc,prediction_step_qc])
     final_eval_concat.to_csv(output_path, sep='\t',index=False)
