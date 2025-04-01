@@ -4,13 +4,13 @@
 samples: config/samples.csv
 
 # Path to your raw sequencing reads (do not end this path with '/')
-short_reads: /scratch/esnitkin_root/esnitkin0/jjhale/public/c_auris_ncbi_pathogen/sra_t60_NoAssemblies_03-06-25
+short_reads: /scratch/esnitkin_root/esnitkin0/jjhale/public/c_auris_ncbi_pathogen/sra_t40_03-19-25
 # format for this path:
 # short_reads: /nfs/turbo/umms-esnitkin/Project_Cauris/Sequence_data/illumina_fastq/[batch_name]
 
 # Directory prefix where the outputs will be saved to
 # Rename this to your preferred naming convention with this format: year-month-day_Project_Name_funQCD
-prefix: 2025-03-10_ncbiPathogen_t60_v1
+prefix: 2025-03-28_ncbiPathogen_t40_v1
 
 # Change to genome size of your organism of interest 
 genome_size: 12000000

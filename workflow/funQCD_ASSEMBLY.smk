@@ -144,6 +144,7 @@ rule downsample:
     resources:
         mem_mb = 3000,
         runtime = 30
+    threads: 2
     run:
         downsample_reads({input.r1}, {input.r2}, {output.outr1}, {output.outr2}, {params.gsize})
 
@@ -170,7 +171,7 @@ rule assembly:
         mem_mb = 15000,
         #runtime = 30,
         #runtime = get_assembly_runtime,
-        runtime = lambda wildcards, attempt: 30 + ((attempt-1)*60)
+        runtime = lambda wildcards, attempt: 60 + ((attempt-1)*60)
     shell:
         "spades.py --isolate --pe1-1 {input.r1} --pe1-2 {input.r2} -o {params.out_dir} --threads {threads} --memory {params.mem_g}"
 
