@@ -130,8 +130,9 @@ rule multiqc:
         busco_dir_p = "results/{prefix}/busco/busco_output_prot/",
         busco_dir_n = "results/{prefix}/busco/busco_output_nucl/",
     resources:
-        mem_mb = 2000,
-        runtime = 100
+        mem_mb = 5000,
+        runtime = 600
+    threads: 4
     singularity:
         "docker://multiqc/multiqc:v1.25.1"
     shell:
