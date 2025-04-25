@@ -218,7 +218,7 @@ def check_update_fun(predict_file,output_file,example_qc,intermediate_qc,new_sam
             _ = fh_out.write('FUNANNOTATE PREDICTION FAILED')
             fail_line_list = fail_line.strip().split('\t')
             fail_line_list[0] = sample_name
-            fail_line_list[5] = sample_name + '_R1_fastq.gz'
+            fail_line_list[5] = sample_name + '_R1.fastq.gz'
             _ = fh_inter.write('\t'.join(fail_line_list) + '\n')
         else:
             _ = fh_out.write('FUNANNOTATE PREDICTION PASSED')
