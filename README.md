@@ -1,6 +1,6 @@
 # funQCD - Quality Control and Contamination Detection workflow.
 
-funQCD is a quality control pipeline for short read fungal data, with a focus on Candida auris sequencing data. It is a modified version of QCD (https://github.com/Snitkin-Lab-Umich/QCD), and is intended to be used on a HPC cluster.
+funQCD is a quality control pipeline for short read fungal data, with a focus on Candida auris sequencing data. It is a modified version of QCD (https://github.com/Snitkin-Lab-Umich/QCD), and is intended to be used on a HPC cluster. The workflow is split into three sections (assembly, prediction, and annotation). Basic QC is checked after the assembly and prediction steps, with failed samples removed from the pipeline.
 
 ### Summary
 
@@ -26,42 +26,11 @@ Steps from QCD not currently used:
 
 * The assembled contigs from [SPAdes](https://github.com/ablab/spades) are passed through [Prokka](https://github.com/tseemann/prokka) for annotation, [QUAST](https://quast.sourceforge.net/) for assembly statistics, [MLST](https://github.com/tseemann/mlst) for determining sequence type based on sequences of housekeeping genes, [AMRFinderPlus](https://github.com/ncbi/amr) to identify antimicrobial resistance genes, [skani](https://github.com/bluenote-1577/skani) to identify closest reference genome, and [BUSCO](https://busco.ezlab.org/) for assembly completeness statistics.
 
-The workflow generates all the output in the output prefix folder set in the config file (instructions on setup found [below](#config)). Each workflow step gets its own individual folder as shown:
-
-```
-results
-└─ run_name
-   ├── auriclass
-   ├── busco
-   ├── downsample
-   ├── multiqc
-   ├── quality_aftertrim
-   ├── quality_raw
-   ├── quast
-   ├── raw_coverage
-   ├── spades
-   ├── trimmomatic
-   ├── repeatmasker   
-   └── funannotate
-   		└── sample_name
-			├── interproscan
-			└── eggnog
-
-```
-
 
 ## Installation 
 
 
-> If you are using Great Lakes HPC, ensure you are cloning the repository in your scratch directory. Change `your_uniqname` to your uniqname. 
-
-```
-
-cd /scratch/esnitkin_root/esnitkin1/your_uniqname/
-
-```
-
-> Clone the github directory onto your system. 
+> Clone the github directory. 
 
 ```
 
@@ -119,15 +88,15 @@ This file contains the options for running snakemake. Replace the `slurm_account
 
 ## Running funQCD
 
-> First, perform a dry run of funQCD by running the following command. This will show the steps and commands that funQCD will execute in the real run, without actually executing anything.
+> First, perform a dry run of funQCD's assembly step by running the following command. This will show the steps and commands that funQCD will execute in the real run, without actually executing anything. Remove the --quiet flag for a more detailed view.
 
 ```
 
-snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/ -n
+snakemake -s workflow/funQCD_ASSEMBLY.smk -p --configfile config/config.yaml --profile ./profile/ -n --quiet
 
 ```
 
-> The snakemake options present in profile/config.yaml should be visible in the dry run (such as memory and runtime for each rule). By default, --slurm is enabled in these options, and snakemake will submit jobs to the cluster using the account in your profile. If everything looks correct, start the run using a job script with minimal CPUs, moderate memory, and a long runtime. An example job script is provided in `run_fqcd.job`.
+> The snakemake options present in profile/config.yaml should be visible in the detailed dry run (such as memory and runtime for each rule). By default, --slurm is enabled in these options, and snakemake will submit jobs to the cluster using the account in your profile. If everything looks correct, start the run using a job script with minimal CPUs, moderate memory, and a long runtime. An example job script is provided in `run_fqcd.job`.
 
 ```
 #!/bin/bash
@@ -143,14 +112,10 @@ snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./pr
 #SBATCH --time=20:00:00
 
 module load Bioinformatics snakemake singularity
-snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/
+snakemake -s workflow/funQCD_ASSEMBLY.smk -p --configfile config/config.yaml --profile ./profile/
+snakemake -s workflow/funQCD_PREDICTION.smk -p --configfile config/config.yaml --profile ./profile/
+snakemake -s workflow/funQCD_ANNOTATION.smk -p --configfile config/config.yaml --profile ./profile/
 
 ```
 
-> If you want to run the snakemake pipeline without cluster execution mode, change the `slurm: True` line to `slurm: False` in your profile and run the same command.
-
-```
-module load Bioinformatics snakemake singularity
-snakemake -s workflow/fQCD.smk -p --configfile config/config.yaml --profile ./profile/
- 
-```
+> It's recommended to check the output of each intermediate step (assembly and prediction) before running the next one. funQCD is currently being update to automate this process. 
