@@ -4,13 +4,13 @@
 samples: config/samples.csv
 
 # Path to your raw sequencing reads (do not end this path with '/')
-short_reads: /scratch/esnitkin_root/esnitkin0/jjhale/public/c_auris_ncbi_pathogen/sra_t40_03-19-25
+short_reads: /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/sra_t30_04-25-25
 # format for this path:
 # short_reads: /nfs/turbo/umms-esnitkin/Project_Cauris/Sequence_data/illumina_fastq/[batch_name]
 
 # Directory prefix where the outputs will be saved to
 # Rename this to your preferred naming convention with this format: year-month-day_Project_Name_funQCD
-prefix: 2025-03-28_ncbiPathogen_t40_v1
+prefix: 2025-05-05_ncbiPathogen_t30_v1
 
 # Change to genome size of your organism of interest 
 genome_size: 12000000
@@ -69,7 +69,7 @@ min_n50: 30000
 #skani_db: /nfs/turbo/umms-esnitkin/database/skani/gtdb_skani_database_ani
 
 # Database path
-funqcd_lib: /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_Pipeline_testing/2024_11_11_funQCD_database/lib/
+funqcd_lib: /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2025_funQCD_database/lib/
 # This directory needs to have a specific structure:
 # lib
 # ├—rna_seq_data
