@@ -80,6 +80,7 @@ rule funannotate_train:
         rna_data_r1 = ' '.join(sorted([config["funqcd_lib"] + 'rna_seq_data/' + x for x in os.listdir(config["funqcd_lib"] + 'rna_seq_data/') if '_R1_' in x and 'fastq.gz' in x])),
         rna_data_r2 = ' '.join(sorted([config["funqcd_lib"] + 'rna_seq_data/' + x for x in os.listdir(config["funqcd_lib"] + 'rna_seq_data/') if '_R2_' in x and 'fastq.gz' in x])),
         mem_g = "30G",
+        funannotate_training_dir = "results/{prefix}/funannotate/{sample}/training/",
     threads: 8
     resources:
         mem_mb = 32000,
@@ -95,7 +96,7 @@ rule funannotate_train:
         exitcode=$?
         if [ $exitcode != 0 ];
         then
-            mkdir -p {output.funannotate_training_dir}
+            mkdir -p {params.funannotate_training_dir}
             echo -n > {output.funannotate_training_rna_bam}
             echo -n > {output.funannotate_training_pasa_gff}
             echo -n > {output.funannotate_training_stringtie}
