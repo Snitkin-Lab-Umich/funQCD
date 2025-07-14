@@ -8,11 +8,16 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=5g
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 
 module load Bioinformatics snakemake singularity
 #snakemake -s workflow/funQCD_ASSEMBLY.smk -p --configfile config/config.yaml --profile ./profile/
-snakemake -s workflow/funQCD_PREDICTION.smk -p --configfile config/config.yaml --profile ./profile/
+#snakemake -s workflow/funQCD_PREDICTION.smk -p --configfile config/config.yaml --profile ./profile/
+
+# PART 1
+# snakemake -s workflow/funQCD_PREDICTION.smk -p --configfile config/config.yaml --profile ./profile/ --until cleanup
+#snakemake -s workflow/funQCD_PREDICTION.smk -p --configfile config/config.yaml --profile ./profile/
+snakemake -s workflow/funQCD_ANNOTATION.smk -p --configfile config/config.yaml --profile ./profile/
 
 #exitcode=$?
 #if [ $exitcode == 0 ];

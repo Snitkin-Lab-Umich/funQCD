@@ -8,8 +8,9 @@ import os
 
 PREFIX = config["prefix"]
 
-samples_df = pd.read_csv(f'results/{PREFIX}/assembly_pass_samples.csv')
+#samples_df = pd.read_csv(f'results/{PREFIX}/assembly_pass_samples.csv')
 # this is the new sample file created by the previous step in the pipeline (funQCD_ASSEMBLY)
+samples_df = pd.read_csv(f'results/{PREFIX}/assembly_pass_samples.csv')
 SAMPLE = list(samples_df['sample_id'])
 
 
@@ -124,6 +125,7 @@ rule funannotate_predict:
         runtime = 500,
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
+    priority: 1
     shell:
         # this needs a special check to skip prediction if the training files are empty
         # (by default, prediction can still run even if training failed)
@@ -159,6 +161,7 @@ rule funannotate_update:
         runtime = 600,
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
+    priority: 2
     shell:
         """
         set +e
@@ -189,6 +192,7 @@ rule cleanup:
     resources:
         mem_mb = 5000,
         runtime = 60,
+    priority: 5
     shell:
         """
         rm -f {params.out_dir}training/left.fq.gz
