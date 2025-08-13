@@ -9,9 +9,9 @@ import os
 from downsample import *
 # this imports the function used in the downsample rule
 
-# only use the samples that have 'run' in the data_type column
+# only use the samples that have 'assembly' in the data_type column
 samples_df = pd.read_csv(config["samples"], sep = '\t')
-SAMPLE = list(samples_df['sample_id'][samples_df['data_type'] == 'run'])
+SAMPLE = list(samples_df['sample_id'][samples_df['data_type'] == 'assembly'])
 
 PREFIX = config["prefix"]
 
@@ -32,6 +32,7 @@ rule all:
     input:
         check_assembly = expand("results/{prefix}/quast/{sample}/assembly_check.tsv",sample=SAMPLE,prefix=PREFIX),
 
+# not possible with only the assembly fasta
 rule coverage:
     input:
         r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
@@ -50,6 +51,7 @@ rule coverage:
     shell:
         "zcat {input.r1} {input.r2} | fastq-scan -g {params.size} > {output.coverage}"
 
+# not possible with only the assembly fasta
 rule quality_raw:
     input:
         r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
@@ -72,6 +74,7 @@ rule quality_raw:
         fastqc -o {params.outdir}_Forward {input.r1} && fastqc -o {params.outdir}_Reverse {input.r2} &>{log}
         """
 
+# not possible with only the assembly fasta
 rule trimmomatic_pe:
     input:
         r1 = config["short_reads"] + "/" + "{sample}_R1.fastq.gz",
@@ -111,6 +114,7 @@ rule trimmomatic_pe:
         LEADING:3 TRAILING:3 SLIDINGWINDOW:{params.window_size}:{params.window_size_quality} MINLEN:{params.minlength} HEADCROP:{params.headcrop_length} &>{log}
         """
 
+# not possible with only the assembly fasta
 rule quality_aftertrim:
     input:
         r1 = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz",
@@ -133,6 +137,7 @@ rule quality_aftertrim:
         fastqc -o {params.outdir}_Forward {input.r1} && fastqc -o {params.outdir}_Reverse {input.r2} &>{log}
         """
 
+# not possible with only the assembly fasta
 rule downsample:
     input:
         r1 = "results/{prefix}/trimmomatic/{sample}/{sample}_R1_trim_paired.fastq.gz",
@@ -155,6 +160,7 @@ rule downsample:
 # def get_assembly_runtime(wildcards,attempt):
 #     return(30 + (60 * (attempt - 1)))
 
+# not needed with only the assembly fasta
 rule assembly:
     input:
         r1 = "results/{prefix}/downsample/{sample}/{sample}_R1_trim_paired.fastq.gz",
@@ -176,10 +182,10 @@ rule assembly:
     shell:
         "spades.py --isolate --pe1-1 {input.r1} --pe1-2 {input.r2} -o {params.out_dir} --threads {threads} --memory {params.mem_g}"
 
-
+# raw assembly should start here
 rule bioawk:
     input:
-        spades_assembly = "results/{prefix}/spades/{sample}/contigs.fasta",
+        raw_assembly = config["short_reads"] + "/" + "{sample}.fasta",
     output:
         spades_l1000_assembly = "results/{prefix}/spades/{sample}/{sample}_contigs_l1000.fasta"
     params:
@@ -193,7 +199,7 @@ rule bioawk:
         "docker://lbmc/bioawk:1.0"
     shell:
         """
-        ./bioawk.sh {input.spades_assembly} {output.spades_l1000_assembly} {params.out_dir} {params.prefix}
+        ./bioawk.sh {input.raw_assembly} {output.spades_l1000_assembly} {params.out_dir} {params.prefix}
         """
 
 
@@ -259,7 +265,7 @@ def check_assembly_fun(
             _ = fh_out.write('ASSEMBLY QC FAILED')
             fail_line_list = fail_line.strip().split('\t')
             fail_line_list[0] = sample_name
-            fail_line_list[5] = sample_name + '_R1.fastq.gz'
+            fail_line_list[5] = sample_name + '.fasta'
             _ = fh_inter.write('\t'.join(fail_line_list) + '\n')
         else:
             _ = fh_out.write('ASSEMBLY QC PASSED')
@@ -270,9 +276,10 @@ rule check_assembly:
         spades_l1000_assembly = "results/{prefix}/spades/{sample}/{sample}_contigs_l1000.fasta",
         quast_report = "results/{prefix}/quast/{sample}/report.tsv",
         auriclass_report = "results/{prefix}/auriclass/{sample}/{sample}_report.tsv",
-        aftertrim_fastqc_report_fwd = "results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html",
-        raw_fastqc_report_fwd = "results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html",
-        coverage = "results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json",
+        # these three do not exist for assemblies
+        #aftertrim_fastqc_report_fwd = "results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html",
+        #raw_fastqc_report_fwd = "results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html",
+        #coverage = "results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json",
     output:
         assembly_check = "results/{prefix}/quast/{sample}/assembly_check.tsv",
     resources:

@@ -17,18 +17,21 @@ def copy_gm_key():
 
 def make_samples_csv(path):
     flist = os.listdir(path)
-    sample_id_set = set()
+    sample_id_dict = {}
     if os.path.exists('config/samples.csv'):
         print('Overwriting config/samples.csv with new version')
     for f in flist:
-        if '_R1.fastq.gz' in f or '_R2.fastq.gz' in f:
+        if f.endswith('_R1.fastq.gz') or f.endswith('_R2.fastq.gz'):
             sample_id = '_R'.join(f.split('_R')[:-1])
             # this should always return the full text to the left of '_R1.fastq.gz' or '_R2.fastq.gz', even if it contains '_R' somewhere other than the end
-            sample_id_set.add(sample_id)
+            sample_id_dict[sample_id] = 'run'
+        elif f.endswith('.fasta'):
+            sample_id = f.split('.fasta')[0]
+            sample_id_dict[sample_id] = 'assembly'
     with open('config/samples.csv','w') as fhout:
-        _ = fhout.write('sample_id\n')
-        for sid in sorted(list(sample_id_set)):
-            _ = fhout.write(sid + '\n')
+        _ = fhout.write('sample_id\tdata_type\n')
+        for sid in sorted(sample_id_dict.keys()):
+            _ = fhout.write(f'{sid}\t{sample_id_dict[sid]}\n')
 
 def add_path_to_config(path,prefix,config_file = 'config/config.yaml'):
     lines = []

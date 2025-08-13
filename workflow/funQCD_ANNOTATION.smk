@@ -111,13 +111,16 @@ rule busco_final:
         rm -rf RM_*
         """
 
+
+# samples may or may not have fastqc reports
+# multiqc should be fill these in with null/NA when this comes up
 rule multiqc:
     input:
         quast_report = expand("results/{prefix}/quast/{sample}/report.tsv", sample = SAMPLE, prefix = PREFIX),
-        aftertrim_fastqc_report_fwd = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        aftertrim_fastqc_report_rev = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        raw_fastqc_report_fwd = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        #aftertrim_fastqc_report_fwd = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Forward/{sample}_R1_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        #aftertrim_fastqc_report_rev = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        #raw_fastqc_report_fwd = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample = SAMPLE, prefix = PREFIX),
+        #raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX),
         busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
         busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
     output:
@@ -145,7 +148,7 @@ rule qc_report_final:
     input:
         multiqc_report = "results/{prefix}/multiqc/{prefix}_QC_report.html",
         auriclass_report = expand("results/{prefix}/auriclass/{sample}/{sample}_report.tsv", sample = SAMPLE, prefix = PREFIX), 
-        raw_coverage_report = expand("results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json", sample = SAMPLE, prefix = PREFIX),
+        #raw_coverage_report = expand("results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json", sample = SAMPLE, prefix = PREFIX),
     output:
         summary_output = "results/{prefix}/multiqc/{prefix}_final_qc_summary.tsv",
     params:
