@@ -85,13 +85,13 @@ rule funannotate_train:
     threads: 8
     resources:
         mem_mb = 32000,
-        runtime = 780,
+        runtime = 480,
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
         """
         set +e
-        funannotate train --input {input.masked_assembly} --out {params.out_dir} \
+        timeout 7h funannotate train --input {input.masked_assembly} --out {params.out_dir} \
         --left {params.rna_data_r1} --right {params.rna_data_r2} --stranded RF \
         --jaccard_clip --species "Candida auris" --isolate {wildcards.sample} --cpus {threads} --memory {params.mem_g}
         exitcode=$?
@@ -122,7 +122,7 @@ rule funannotate_predict:
     threads: 8
     resources:
         mem_mb = 15000,
-        runtime = 500,
+        runtime = 360,
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     priority: 1
@@ -134,7 +134,7 @@ rule funannotate_predict:
         trainfile=$(wc -l < {input.funannotate_training_rna_bam})
         if [ $trainfile != 0 ];
         then
-            funannotate predict --input {input.masked_assembly} --out {params.out_dir} \
+            timeout 5h funannotate predict --input {input.masked_assembly} --out {params.out_dir} \
             --species {wildcards.sample} --force \
             --busco_seed_species candida_albicans --busco_db saccharomycetes_odb10 --cpus {threads} \
             --GENEMARK_PATH {params.genemark_path}
@@ -158,7 +158,7 @@ rule funannotate_update:
     threads: 8
     resources:
         mem_mb = 15000,
-        runtime = 600,
+        runtime = 360,
     singularity:
         "docker://nextgenusfs/funannotate:v1.8.17"
     priority: 2
@@ -168,7 +168,7 @@ rule funannotate_update:
         predictfile=$(wc -l < {input.funannotate_predict_proteins})
         if [ $predictfile != 0 ];
         then
-            funannotate update --input {params.out_dir} --cpus {threads}
+            timeout 5h funannotate update --input {params.out_dir} --cpus {threads}
         fi
         exitcode=$?
         if [ $exitcode != 0 ] || [ $predictfile == 0 ];
