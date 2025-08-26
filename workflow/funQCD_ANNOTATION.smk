@@ -31,8 +31,8 @@ rule interproscan:
         #interproscan_data = config["funqcd_lib"] + "interproscan_data/data/antifam/",
     threads: 8
     resources:
-        mem_mb = 15000,
-        runtime = 360
+        mem_mb = 30000,
+        runtime = 480
     shell:
         """
         bash /opt/interproscan/interproscan.sh --input {input.funannotate_update_proteins} --output-dir {params.out_dir} \
