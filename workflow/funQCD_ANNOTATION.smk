@@ -23,20 +23,30 @@ rule interproscan:
         funannotate_update_proteins = "results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa",
        #funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa",
     output:
-        interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml"
+        #interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml",
+        interproscan_out_file = "results/{prefix}/funannotate/{sample}/interproscan/{sample}_interproscan_done.txt"
     singularity:
         "docker://interpro/interproscan:5.71-102.0"
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/interproscan/",
+        #interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml",
         #interproscan_data = config["funqcd_lib"] + "interproscan_data/data/antifam/",
     threads: 8
     resources:
         mem_mb = 30000,
-        runtime = 480
+        runtime = 720
     shell:
         """
-        bash /opt/interproscan/interproscan.sh --input {input.funannotate_update_proteins} --output-dir {params.out_dir} \
+        set +e
+        timeout 7h bash /opt/interproscan/interproscan.sh --input {input.funannotate_update_proteins} --output-dir {params.out_dir} \
         --disable-precalc --cpu {threads}
+        exitcode=$?
+        if [ $exitcode == 0 ];
+        then
+            echo done > {output.interproscan_out_file}
+        else
+            touch {output.interproscan_out_file}
+        fi
         """
 
 rule eggnog:
@@ -44,7 +54,8 @@ rule eggnog:
         funannotate_update_proteins = "results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa",
         #funannotate_predict_proteins = "results/{prefix}/funannotate/{sample}/predict_results/{sample}.proteins.fa"
     output:
-        eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations"
+        #eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations",
+        eggnog_out_file = "results/{prefix}/funannotate/{sample}/eggnog/{sample}_eggnog_done.txt",
     singularity:
         "docker://nanozoo/eggnog-mapper:2.1.9--4f2b6c0"
     params:
@@ -53,25 +64,45 @@ rule eggnog:
     threads: 8
     resources:
         mem_mb = 10000,
-        runtime = 300
+        runtime = 360
     shell:
         """
-        emapper.py -i {input.funannotate_update_proteins} --itype proteins --data_dir {params.eggnog_data_dir} -m diamond \
+        set +e
+        timeout 5h emapper.py -i {input.funannotate_update_proteins} --itype proteins --data_dir {params.eggnog_data_dir} -m diamond \
         --output {wildcards.sample} --output_dir {params.out_dir} --cpu {threads} --override
+        exitcode=$?
+        if [ $exitcode == 0 ];
+        then
+            echo done > {output.eggnog_out_file}
+        else
+            touch {output.eggnog_out_file}
+        fi
         """
 
 rule funannotate_annotate:
     input:
         funannotate_update_proteins = "results/{prefix}/funannotate/{sample}/update_results/{sample}.proteins.fa",
         #funannotate_predict_out = "results/{prefix}/funannotate/{sample}/update_results/",
-        interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml",
-        eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations",
+        #interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml",
+        #eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations",
+        interproscan_out_file = "results/{prefix}/funannotate/{sample}/interproscan/{sample}_interproscan_done.txt",
+        eggnog_out_file = "results/{prefix}/funannotate/{sample}/eggnog/{sample}_eggnog_done.txt",
     output:
         funannotate_annotate_proteins = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa",
         funannotate_annotate_assembly = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.scaffolds.fa",
     params:
         out_dir = "results/{prefix}/funannotate/{sample}/",
-        funannotate_update_dir = "results/{prefix}/funannotate/{sample}/update_results/",
+        #funannotate_update_dir = "results/{prefix}/funannotate/{sample}/update_results/",
+        #funannotate_update_dreport = "results/{prefix}/funannotate/{sample}/annotate_results/discrepency.report.txt",
+        #interproscan_out = "results/{prefix}/funannotate/{sample}/interproscan/{sample}.proteins.fa.xml",
+        #eggnog_out = "results/{prefix}/funannotate/{sample}/eggnog/{sample}.emapper.annotations",
+        funannotate_update_dir = "update_results/",
+        interproscan_out = "interproscan/{sample}.proteins.fa.xml",
+        eggnog_out = "eggnog/{sample}.emapper.annotations",
+        interproscan_out_file_indir = "interproscan/{sample}_interproscan_done.txt",
+        eggnog_out_file_indir = "eggnog/{sample}_eggnog_done.txt",
+        annotate_tmp_dir = "/tmp/{sample}_annotate_tmp/",
+        funannotate_annotate_check = "annotate_results/annotation_check.txt",
     threads: 8
     resources:
         mem_mb = 3000,
@@ -80,8 +111,28 @@ rule funannotate_annotate:
         "docker://nextgenusfs/funannotate:v1.8.17"
     shell:
         """
-        funannotate annotate -i {params.funannotate_update_dir} -o {params.out_dir} --cpus {threads} \
-        --iprscan {input.interproscan_out} --eggnog {input.eggnog_out} --busco_db saccharomycetes_odb10
+        cd {params.out_dir}
+        # if the interproscan and eggnog both worked, use both, if only one worked, use that one, if neither worked, run without either
+        if [ $(wc -l < {params.interproscan_out_file_indir}) -gt 0 ] && [ $(wc -l < {params.eggnog_out_file_indir}) -gt 0 ];
+        then
+            funannotate annotate -i {params.funannotate_update_dir} -o {params.out_dir} --cpus {threads} \
+            --iprscan {params.interproscan_out} --eggnog {params.eggnog_out} --busco_db saccharomycetes_odb10 --tmpdir {params.annotate_tmp_dir}
+            echo 'USED BOTH INTERPROSCAN AND EGGNOG' > {params.funannotate_annotate_check}
+        elif [ $(wc -l < {params.interproscan_out_file_indir}) -gt 0 ] && [ $(wc -l < {params.eggnog_out_file_indir}) -eq 0 ];
+        then
+            funannotate annotate -i {params.funannotate_update_dir} -o {params.out_dir} --cpus {threads} \
+            --iprscan {params.interproscan_out} --busco_db saccharomycetes_odb10 --tmpdir {params.annotate_tmp_dir}
+            echo 'USED ONLY INTERPROSCAN' > {params.funannotate_annotate_check}
+        elif [ $(wc -l < {params.interproscan_out_file_indir}) -eq 0 ] && [ $(wc -l < {params.eggnog_out_file_indir}) -gt 0 ];
+        then
+            funannotate annotate -i {params.funannotate_update_dir} -o {params.out_dir} --cpus {threads} \
+            --eggnog {params.eggnog_out} --busco_db saccharomycetes_odb10 --tmpdir {params.annotate_tmp_dir}
+            echo 'USED ONLY EGGNOG' > {params.funannotate_annotate_check}
+        else
+            funannotate annotate -i {params.funannotate_update_dir} -o {params.out_dir} --cpus {threads} \
+            --busco_db saccharomycetes_odb10 --tmpdir {params.annotate_tmp_dir}
+            echo 'USED NEITHER INTERPROSCAN NOR EGGNOG' > {params.funannotate_annotate_check}
+        fi
         """
 
 # The line 'rm -rf RM_*' removes the directories that RepeatMasker generates in the working directory
