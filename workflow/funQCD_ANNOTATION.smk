@@ -208,6 +208,8 @@ rule qc_report_final:
         raw_coverage_dir = "results/{prefix}/raw_coverage/",
         intermediate_qc_assembly = "results/{prefix}/quast/failed_assembly_qc_summary.tsv",
         intermediate_qc_prediction = "results/{prefix}/funannotate/failed_prediction_qc_summary.tsv",
+        # this is a list of the samples that passed the funannotate prediction step
+        predict_sample_vec = SAMPLE,
     resources:
         mem_mb = 2000,
         runtime = 60,
