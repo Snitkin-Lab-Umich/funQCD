@@ -12,9 +12,12 @@
 
 module load Bioinformatics snakemake singularity
 
+#snakemake -s workflow/funQCD_ASSEMBLY.smk -p --configfile config/config.yaml --profile ./profile/
+snakemake -s workflow/funQCD_PREDICTION_PERMISSIVE.smk -p --configfile config/config.yaml --profile ./profile/
+snakemake -s workflow/funQCD_ANNOTATION.smk -p --configfile config/config.yaml --profile ./profile/
 
 #snakemake -s workflow/funQCD_PREDICTION_LESS_RNA.smk -p --configfile config/config.yaml --profile ./profile/
-snakemake -s workflow/funQCD_ANNOTATION.smk -p --configfile config/config.yaml --profile ./profile/
+#snakemake -s workflow/funQCD_ANNOTATION.smk -p --configfile config/config.yaml --profile ./profile/
 
 #snakemake -s workflow/funQCD_ASSEMBLY.smk -p --configfile config/config.yaml --profile ./profile/
 #snakemake -s workflow/funQCD_PREDICTION.smk -p --configfile config/config.yaml --profile ./profile/
