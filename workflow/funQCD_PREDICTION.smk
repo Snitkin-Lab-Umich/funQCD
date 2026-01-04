@@ -54,8 +54,8 @@ rule repeatmasker:
         repeat_lib = config["funqcd_lib"] + "repeat_libraries/fungi_b8441/b8441_fungi_repeatlib.fa",
     threads: 8
     resources:
-        mem_mb = 5000,
-        runtime = 120,
+        mem_mb = 10000,
+        runtime = 960,
     singularity:
         "docker://dfam/tetools:1.89.2"
     shell:

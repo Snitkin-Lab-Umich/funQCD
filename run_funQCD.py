@@ -5,6 +5,7 @@ import subprocess
 import argparse
 
 # attempt to run the snakemake commands for funQCD in the proper order, based on the provided arguments
+# note: remember to add the remaining steps from the setup script to this process, to start directly from raw reads
 
 def run_snakemake_commands(start_step, skip_train):
     command_format = ['snakemake','-s','placeholder','-p','--configfile','config/config.yaml','--profile','profile/']
@@ -49,7 +50,7 @@ def main():
         '--start',type=str, choices=['assembly','prediction','annotation'],
         help='''Provide the step you want to start the pipeline at. In order, the steps are assembly, prediction, and annotation.
         Downstream steps will be performed as well. Use prediction or annotation to resume a previous run.''',
-        default='assembly',required=True
+        default='assembly'
         )
     parser.add_argument(
         '--skip_train','-st',action='store_true',

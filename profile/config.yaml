@@ -5,7 +5,7 @@ singularity-args: "--bind /nfs/turbo/umms-esnitkin/Project_Cauris/Analysis/2024_
 latency-wait: 1000
 nolock: True
 # make sure at least 8 cores are provided 
-cores: 1
+cores: 8
 # make sure this is equal to the memory provided in config/config.yaml
 #resources: mem_mb=32000
 jobs: 60
