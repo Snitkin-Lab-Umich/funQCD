@@ -46,6 +46,27 @@ def add_path_to_config(path,prefix,config_file = 'config/config.yaml'):
         for line in lines:
             _ = fh_out.write(line)
 
+def modify_fastq_names(path, trim_string):
+    # ensure all files start with the string preceding trim_string, and end in either _R1.fastq.gz or _R2.fastq.gz as appropriate
+    flist = os.listdir(path)
+    for fname in flist:
+        if not fname.endswith('.fastq.gz'):
+            continue
+        fname_prefix = fname.split(trim_string)[0]
+        # extract the character following the last instance of '_R' in the filename, and ensure it is either 1 or 2
+        if fname.count('_R') == 0:
+            print(f'Error: cannot determine read direction for {fname}')
+            quit(1)
+        if fname.count('_R') > 1:
+            print(f'Warning: ambiguous read direction for {fname}. The last occurrence will be used to deteremine read direction.')
+        fname_suffix = fname.split('_R')[-1]
+        if fname_suffix[0] not in ['1','2']:
+            print(f'Error: cannot determine read direction for {fname}')
+            quit(1)
+        new_fname = f'{fname_prefix}_R{fname_suffix[0]}.fastq.gz'
+        os.rename(os.path.join(path,fname),os.path.join(path,new_fname))
+        print(f'Renamed {fname} to {new_fname}')
+
 def main():
     # define all args
     parser = argparse.ArgumentParser()
@@ -60,6 +81,12 @@ def main():
         help='''Provide a name for this batch. This will be added to config/config.yaml.''',
         default=None,required=True
         )
+    parser.add_argument(
+        '--trim_names','-t',type=str,
+        help='''If your fastq files need part of their names removed, specify the substring to trim with. For example, if your files are structured as 
+        [sample]_S1_L001_R1_001.fastq.gz, then specify _S.''',
+        default=None
+        )
     args = parser.parse_args()
     if not os.path.isdir(args.path):
         print(f'Could not locate directory at {args.path}')
@@ -68,6 +95,8 @@ def main():
     if args.path.endswith('/'):
         args.path = args.path[:-1]
     copy_gm_key()
+    if args.trim_names is not None:
+        modify_fastq_names(args.path,args.trim_names)
     make_samples_csv(args.path)
     add_path_to_config(args.path,args.prefix)
 
