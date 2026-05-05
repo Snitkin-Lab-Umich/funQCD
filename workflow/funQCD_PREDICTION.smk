@@ -241,7 +241,7 @@ rule more_cleanup:
 #         """
 
 
-def check_update_fun(predict_file,output_file,example_qc,intermediate_qc,new_sample_file,sample_name):
+def check_update_fun(predict_file,output_file,example_qc,intermediate_qc,new_sample_file,sample_name,quast_report,auriclass_report,coverage_report):
     # determine the format of the QC file from the example
     with open(example_qc,'r') as fh_example:
         header_line = fh_example.readline()
@@ -254,12 +254,36 @@ def check_update_fun(predict_file,output_file,example_qc,intermediate_qc,new_sam
     if not os.path.isfile(new_sample_file):
         with open(new_sample_file,'w') as fh_new:
             _ = fh_new.write('sample_id\n')
+    # load the intermediate qc data from the quast report, auriclass report, and coverage report
+    qc_data = {}
+    with open(quast_report,'r') as fh_quast, open(auriclass_report,'r') as fh_auriclass, open(coverage_report,'r') as fh_coverage:
+        for line in fh_quast:
+            d = line.strip().split('\t')
+            if d[0] == 'N50':
+                qc_data['N50'] = int(d[1])
+            if d[0] == '# contigs':
+                qc_data['# contigs (>= 0 bp)'] = int(d[1])
+            if d[0] == 'Total length':
+                qc_data['Total length'] = int(d[1])
+        coverage_data = json.load(fh_coverage)
+        qc_data['coverage'] = coverage_data['qc_stats']['coverage']
+        qc_data['total_reads'] = coverage_data['qc_stats']['read_total']
+        qc_data['total_bp'] = coverage_data['qc_stats']['total_bp']
+        # determine clade from the auriclass report
+        auri_df = pd.read_csv(fh_auriclass, sep = '\t')
+        qc_data['auriclass_QC_decision'] = auri_df['QC_decision'][0]
+        qc_data['auriclass_clade'] = auri_df['Clade'][0]
     with open(intermediate_qc,'a') as fh_inter, open(output_file,'w') as fh_out,open(new_sample_file, 'a') as fh_new:
         if os.path.getsize(predict_file) == 0:
             _ = fh_out.write('FUNANNOTATE PREDICTION FAILED')
             fail_line_list = fail_line.strip().split('\t')
-            fail_line_list[0] = sample_name
-            fail_line_list[5] = sample_name + '_R1.fastq.gz'
+            header_line_list = header_line.strip().split('\t')
+            qc_data['Sample'] = sample_name
+            qc_data['Filename'] = sample_name + '_R1.fastq.gz'
+            for key in qc_data.keys():
+                if key in header_line_list:
+                    index = header_line_list.index(key)
+                    fail_line_list[index] = str(qc_data[key])
             _ = fh_inter.write('\t'.join(fail_line_list) + '\n')
         else:
             _ = fh_out.write('FUNANNOTATE PREDICTION PASSED')
@@ -276,10 +300,15 @@ rule check_update:
         #new_sample_file = "config/predict_pass_samples.csv",
         new_sample_file = "results/{prefix}/predict_pass_samples.csv",
         intermediate_qc = "results/{prefix}/funannotate/failed_prediction_qc_summary.tsv",
+        quast_report = "results/{prefix}/quast/{sample}/report.tsv",
+        auriclass_report = "results/{prefix}/auriclass/{sample}/{sample}_report.tsv",
+        coverage = "results/{prefix}/raw_coverage/{sample}/{sample}_coverage.json",
     resources:
         mem_mb = 2000,
         runtime = 20,
     run:
         check_update_fun(
             input.funannotate_update_proteins,output.outp,params.example_qc,
-            params.intermediate_qc,params.new_sample_file,wildcards.sample)
+            params.intermediate_qc,params.new_sample_file,wildcards.sample,
+            params.quast_report,params.auriclass_report,params.coverage
+            )

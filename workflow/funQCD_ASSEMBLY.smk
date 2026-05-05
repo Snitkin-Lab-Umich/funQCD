@@ -5,6 +5,7 @@ configfile: "config/config.yaml"
 #include: "fQCD_report.smk"
 
 import pandas as pd
+import json
 import os
 from downsample import *
 # this imports the function used in the downsample rule
@@ -229,7 +230,7 @@ rule auriclass:
 
 
 def check_assembly_fun(
-    quast_report,intermediate_qc,example_qc,sample_name,output_file,new_sample_file,
+    quast_report,raw_coverage_report,auriclass_report,intermediate_qc,example_qc,sample_name,output_file,new_sample_file,
     max_contigs,min_n50,min_assembly_length,max_assembly_length):
     # determine the format of the QC file from the example
     with open(example_qc,'r') as fh_example:
@@ -244,22 +245,42 @@ def check_assembly_fun(
         with open(new_sample_file,'w') as fh_new:
             _ = fh_new.write('sample_id\n')
     # read the quast report for basic assembly stats
-    with open(quast_report,'r') as fh_quast:
+    with open(quast_report,'r') as fh_quast, open(raw_coverage_report,'r') as fh_coverage, open(auriclass_report,'r') as fh_auriclass:
+        # add both the quast data and the coverage data to a dictionary
+        # the quast report is a text file and the coverage report is a json file
         qc_data = {}
         for line in fh_quast:
             d = line.strip().split('\t')
-            if d[0] in ['# contigs','Total length','N50']:
-                qc_data[d[0]] = int(d[1])
+            if d[0] == 'N50':
+                qc_data['N50'] = int(d[1])
+            if d[0] == '# contigs':
+                qc_data['# contigs (>= 0 bp)'] = int(d[1])
+            if d[0] == 'Total length':
+                qc_data['Total length'] = int(d[1])
+        coverage_data = json.load(fh_coverage)
+        qc_data['coverage'] = coverage_data['qc_stats']['coverage']
+        qc_data['total_reads'] = coverage_data['qc_stats']['read_total']
+        qc_data['total_bp'] = coverage_data['qc_stats']['total_bp']
+        # determine clade from the auriclass report
+        auri_df = pd.read_csv(fh_auriclass, sep = '\t')
+        qc_data['auriclass_QC_decision'] = auri_df['QC_decision'][0]
+        qc_data['auriclass_clade'] = auri_df['Clade'][0]
     # based on this data, write to the intermediate qc file and the output file (which is essentially just for snakemake to see completion)
-    # this does assume that the file names are at fixed positions (0 and 5)
+    # where possible, add the intermediate qc data to the appropriate columns
     with open(intermediate_qc,'a') as fh_inter, open(output_file,'w') as fh_out,open(new_sample_file, 'a') as fh_new:
         if any([
-            qc_data['# contigs'] > max_contigs, qc_data['N50'] < min_n50, 
+            qc_data['# contigs (>= 0 bp)'] > max_contigs, qc_data['N50'] < min_n50, 
             qc_data['Total length'] < min_assembly_length, qc_data['Total length'] > max_assembly_length]):
             _ = fh_out.write('ASSEMBLY QC FAILED')
             fail_line_list = fail_line.strip().split('\t')
-            fail_line_list[0] = sample_name
-            fail_line_list[5] = sample_name + '_R1.fastq.gz'
+            header_line_list = header_line.strip().split('\t')
+            # use the positions in the header line to determine where to write sample name qc data
+            qc_data['Sample'] = sample_name
+            qc_data['Filename'] = sample_name + '_R1.fastq.gz'
+            for key in qc_data.keys():
+                if key in header_line_list:
+                    index = header_line_list.index(key)
+                    fail_line_list[index] = str(qc_data[key])
             _ = fh_inter.write('\t'.join(fail_line_list) + '\n')
         else:
             _ = fh_out.write('ASSEMBLY QC PASSED')
@@ -289,6 +310,6 @@ rule check_assembly:
         max_alen = config["max_assembly_length"],
     run:
         check_assembly_fun(
-            input.quast_report,params.intermediate_qc,params.example_qc,wildcards.sample,output.assembly_check,
+            input.quast_report,input.coverage,input.auriclass_report,params.intermediate_qc,params.example_qc,wildcards.sample,output.assembly_check,
             params.new_sample_file,params.max_contigs,params.min_n50,params.min_alen,params.max_alen)
 
