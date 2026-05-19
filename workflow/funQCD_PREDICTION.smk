@@ -5,6 +5,7 @@ configfile: "config/config.yaml"
 
 import pandas as pd
 import os
+import json
 
 PREFIX = config["prefix"]
 
