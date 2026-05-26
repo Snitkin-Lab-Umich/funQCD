@@ -64,6 +64,9 @@ def modify_fastq_names(path, trim_string):
             print(f'Error: cannot determine read direction for {fname}')
             quit(1)
         new_fname = f'{fname_prefix}_R{fname_suffix[0]}.fastq.gz'
+        if os.path.exists(os.path.join(path,new_fname)):
+            print(f'Error: {fname} shares the same name as another file after modification')
+            quit(1)
         os.rename(os.path.join(path,fname),os.path.join(path,new_fname))
         print(f'Renamed {fname} to {new_fname}')
 
