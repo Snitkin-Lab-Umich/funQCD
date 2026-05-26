@@ -142,8 +142,8 @@ rule busco_single_sample:
     output:
         #busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
         #busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
-        busco_out_p = "results/{prefix}/busco/busco_output_prot/{sample}.proteins.fa/short_summary.specific.saccharomycetes_odb10.{sample}.proteins.fa",
-        busco_out_n = "results/{prefix}/busco/busco_output_nucl/{sample}.scaffolds.fa/short_summary.specific.saccharomycetes_odb10.{sample}.scaffolds.fa",
+        busco_out_p = "results/{prefix}/busco/busco_output_prot/{sample}.proteins.fa/short_summary.specific.saccharomycetes_odb10.{sample}.proteins.fa.txt",
+        busco_out_n = "results/{prefix}/busco/busco_output_nucl/{sample}.scaffolds.fa/short_summary.specific.saccharomycetes_odb10.{sample}.scaffolds.fa.txt",
     params:
         busco_db = config["funqcd_lib"] + "busco/",
         protein_fasta = "results/{prefix}/funannotate/{sample}/annotate_results/{sample}.proteins.fa",
@@ -151,7 +151,7 @@ rule busco_single_sample:
     threads: 8
     resources:
         mem_mb = 10000,
-        runtime = 45,
+        runtime = 600,
     singularity:
         "docker://ezlabgva/busco:v5.7.0_cv1"
     shell:
@@ -160,34 +160,29 @@ rule busco_single_sample:
         #mkdir -p results/{wildcards.prefix}/busco/input/nucl/
         #cp {params.protein_fasta} results/{wildcards.prefix}/busco/input/prot
         #cp {params.nucleotide_fasta} results/{wildcards.prefix}/busco/input/nucl
-        busco -f --in {input.funannotate_annotate_proteins} --mode protein --lineage_dataset saccharomycetes_odb10 --out_path results/{wildcards.prefix}/busco/ -c {threads} --out busco_output_prot --offline --download_path {params.busco_db}
-        busco -f --in {input.funannotate_annotate_nucleotides} --mode genome --lineage_dataset saccharomycetes_odb10 --out_path results/{wildcards.prefix}/busco/ -c {threads} --out busco_output_nucl --offline --download_path {params.busco_db}
+        busco -f --in {input.funannotate_annotate_proteins} --mode protein --lineage_dataset saccharomycetes_odb10 --out_path results/{wildcards.prefix}/busco/busco_output_prot -c {threads} --out {wildcards.sample}.proteins.fa --offline --download_path {params.busco_db}
+        busco -f --in {input.funannotate_annotate_nucleotides} --mode genome --lineage_dataset saccharomycetes_odb10 --out_path results/{wildcards.prefix}/busco/busco_output_nucl -c {threads} --out {wildcards.sample}.scaffolds.fa --offline --download_path {params.busco_db}
         #rm -rf RM_*
         """
 
-# generate the busco batch summary files
-# The line 'rm -rf RM_*' removes the directories that RepeatMasker generates in the working directory
-rule busco_final:
+rule busco_summarize:
     input:
-        funannotate_annotate_proteins = expand("results/{prefix}/busco/busco_output_prot/{sample}.proteins.fa/short_summary.specific.saccharomycetes_odb10.{sample}.proteins.fa", prefix = PREFIX, sample = SAMPLE),
-        funannotate_annotate_nucleotides = expand("results/{prefix}/busco/busco_output_nucl/{sample}.scaffolds.fa/short_summary.specific.saccharomycetes_odb10.{sample}.scaffolds.fa", prefix = PREFIX, sample = SAMPLE),       
+        funannotate_annotate_proteins = expand("results/{prefix}/busco/busco_output_prot/{sample}.proteins.fa/short_summary.specific.saccharomycetes_odb10.{sample}.proteins.fa.txt", prefix = PREFIX, sample = SAMPLE),
+        funannotate_annotate_nucleotides = expand("results/{prefix}/busco/busco_output_nucl/{sample}.scaffolds.fa/short_summary.specific.saccharomycetes_odb10.{sample}.scaffolds.fa.txt", prefix = PREFIX, sample = SAMPLE),       
     output:
-        busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
-        busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
+        busco_out_p = "results/{prefix}/busco/busco_summary_prot/busco_prot_batch_summary.txt",
+        busco_out_n = "results/{prefix}/busco/busco_summary_nucl/busco_nucl_batch_summary.txt",
     params:
-        busco_db = config["funqcd_lib"] + "busco/",
+        busco_output_p_dir = "results/{prefix}/busco/busco_output_prot/",
+        busco_output_n_dir = "results/{prefix}/busco/busco_output_nucl/",
+        busco_summary_p_dir = "results/{prefix}/busco/busco_summary_prot/",
+        busco_summary_n_dir = "results/{prefix}/busco/busco_summary_nucl/",
     threads: 1
     resources:
-        mem_mb = 10000,
-        runtime = 2800,
-    singularity:
-        "docker://ezlabgva/busco:v5.7.0_cv1"
-    shell:
-        """
-        busco -r --in results/{wildcards.prefix}/busco/input/prot --mode protein --lineage_dataset saccharomycetes_odb10 --out_path results/{wildcards.prefix}/busco/ -c {threads} --out busco_output_prot --offline --download_path {params.busco_db}
-        busco -r --in results/{wildcards.prefix}/busco/input/nucl --mode genome --lineage_dataset saccharomycetes_odb10 --out_path results/{wildcards.prefix}/busco/ -c {threads} --out busco_output_nucl --offline --download_path {params.busco_db}
-        rm -rf RM_*
-        """
+        mem_mb = 4000,
+        runtime = 30,
+    script:
+        "summarize_busco.py"
 
 # samples may or may not have fastqc reports
 # multiqc should be fill these in with null/NA when this comes up
@@ -198,8 +193,8 @@ rule multiqc:
         #aftertrim_fastqc_report_rev = expand("results/{prefix}/quality_aftertrim/{sample}/{sample}_Reverse/{sample}_R2_trim_paired_fastqc.html", sample = SAMPLE, prefix = PREFIX),
         #raw_fastqc_report_fwd = expand("results/{prefix}/quality_raw/{sample}/{sample}_Forward/{sample}_R1_fastqc.html", sample = SAMPLE, prefix = PREFIX),
         #raw_fastqc_report_rev = expand("results/{prefix}/quality_raw/{sample}/{sample}_Reverse/{sample}_R2_fastqc.html", sample = SAMPLE, prefix = PREFIX),
-        busco_out_p = "results/{prefix}/busco/busco_output_prot/batch_summary.txt",
-        busco_out_n = "results/{prefix}/busco/busco_output_nucl/batch_summary.txt",
+        busco_out_p = "results/{prefix}/busco/busco_summary_prot/busco_prot_batch_summary.txt",
+        busco_out_n = "results/{prefix}/busco/busco_summary_nucl/busco_nucl_batch_summary.txt",
     output:
         multiqc_report = "results/{prefix}/multiqc/{prefix}_QC_report.html",
     params:
