@@ -50,7 +50,7 @@ def modify_fastq_names(path, trim_string):
     # ensure all files start with the string preceding trim_string, and end in either _R1.fastq.gz or _R2.fastq.gz as appropriate
     flist = os.listdir(path)
     for fname in flist:
-        if not fname.endswith('.fastq.gz'):
+        if not fname.endswith('.fastq.gz') or fname.startswith('.'):
             continue
         fname_prefix = fname.split(trim_string)[0]
         # extract the character following the last instance of '_R' in the filename, and ensure it is either 1 or 2
